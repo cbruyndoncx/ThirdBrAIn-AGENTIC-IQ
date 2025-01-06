@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/MervinPraison/PraisonAI.git
+	branch = main
+	commit = 1c9f16f530b791ad188a29dab02d05df77665b02
+	parent = fa4e6c2ac0357312d6acac1a568d7fcd8706fdc5
+	method = merge
+	cmdver = 0.4.9
