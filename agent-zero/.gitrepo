@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/frdel/agent-zero.git
+	branch = main
+	commit = 13beedc98e1ef6f15852495b111754134594c701
+	parent = 2023abc6de07a7a1be786a8cfa56c54369edc5fd
+	method = merge
+	cmdver = 0.4.9
