@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/circularmachines/CuratedRAG.git
+	branch = main
+	commit = 2d8559f67fa61b2bb820cddf9b949d3c113013e3
+	parent = 8bb192f0c5b95bb2644bd6d86921d0abe806df47
+	method = merge
+	cmdver = 0.4.9
