@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/bracesproul/langtool-template.git
+	branch = main
+	commit = ec4d7f28b9d8ad389daae81f74a88ac7ec61d89a
+	parent = 6dbb349c4c041a87866b2eaba7065eb163bbba10
+	method = merge
+	cmdver = 0.4.9
