@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/FlowiseAI/Flowise.git
+	branch = main
+	commit = 22801591dae59418050055d4ca5799c8ccb65b58
+	parent = bc8b0627e61c2e88cf05b3245eb10d910a7d700b
+	method = merge
+	cmdver = 0.4.9
