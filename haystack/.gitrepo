@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/deepset-ai/haystack.git
+	branch = main
+	commit = 8e3f64717f8c601bd7ef58b68e044a84deceb4eb
+	parent = 7d0701c3e648cc412c2d86321c6eb6ac2db2766b
+	method = merge
+	cmdver = 0.4.9
