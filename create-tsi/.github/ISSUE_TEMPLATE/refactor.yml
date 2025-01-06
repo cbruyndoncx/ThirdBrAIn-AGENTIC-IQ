@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2024 Deutsche Telekom AG, LlamaIndex, Vercel, Inc.
+#
+# SPDX-License-Identifier: MIT
+
+name: Refactor
+title: ""
+description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details
+      placeholder: We are migrating this function to ... version because ...

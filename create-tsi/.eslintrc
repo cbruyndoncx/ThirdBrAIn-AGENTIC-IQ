@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "prettier"
+  ],
+  "rules": {
+    "max-params": [
+      "error",
+      4
+    ],
+    "prefer-const": "error",
+  },
+}

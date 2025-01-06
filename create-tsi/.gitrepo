@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/telekom/create-tsi.git
+	branch = main
+	commit = a5badfb4a537aa47e55c48fa470185b898129ab1
+	parent = d0de78682dbdd65d352d2bddd9cf8e188348c7ce
+	method = merge
+	cmdver = 0.4.9
