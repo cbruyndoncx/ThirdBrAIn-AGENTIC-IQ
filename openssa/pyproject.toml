@@ -1,0 +1,158 @@
+[tool.poetry]
+name = "openssa"
+version = "0.24.12.12"
+
+authors = [
+  "Aitomatic, Inc. <engineering@aitomatic.com>",
+  "Christopher Nguyen <ctn@aitomatic.com>",
+  "Vinh Luong <vinh@aitomatic.com>",
+  "Sang Dinh <sang@aitomatic.com>",
+]
+maintainers = [
+  "Aitomatic, Inc. <engineering@aitomatic.com>",
+  "Vinh Luong <vinh@aitomatic.com>",
+  "Sang Dinh <sang@aitomatic.com>",
+  "Shruti Raghavan <shruti@aitomatic.com>",
+  "William Nguyen <william@aitomatic.com>",
+  "Quynh Le <quynh@aitomatic.com>",
+  "Zooey Nguyen <zooey@aitomatic.com>",
+]
+
+license = "Apache-2.0"
+
+description = "OpenSSA: Small Specialist Agents for Industrial AI"
+readme = "README.md"
+
+homepage = "https://openssa.org"
+repository = "https://github.com/aitomatic/openssa"
+documentation = "https://aitomatic.github.io/openssa"
+
+keywords = [
+  "Artificial Intelligence", "A.I.", "AI",
+  "industrial",
+  "specialist", "specialized",
+  "domain", "expertise", "knowledge",
+]
+classifiers = [
+]
+
+packages = [
+  {include = "openssa"},
+]
+
+include = [
+]
+exclude = [
+  "**/.openssa/",  # OpenSSA cache data
+]
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = ">=6.29"
+notebook = ">=7.3"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = ">=8.1"
+sphinx-autobuild = ">=2024.10"
+sphinx-press-theme = ">=0.9"
+myst-parser = ">=4.0"
+
+[tool.poetry.group.lint.dependencies]
+flake8 = ">=7.1"
+pylint = ">=3.3"
+ruff = ">=0.8"
+
+[tool.poetry.group.test.dependencies]
+pytest = ">=8.3"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+# Llama interface
+huggingface-hub = ">=0.26"
+# OpenAI interface
+openai = ">=1.57"
+# LlamaIndex & related
+llama-index = ">=0.12"
+llama-index-embeddings-azure-openai = ">=0.3"
+llama-index-llms-azure-openai = ">=0.3"
+llama-index-readers-web = ">=0.3"
+docx2txt = ">=0.8"  # for reading .docx files
+pypdf = ">=5.1"  # for reading .pdf files
+pycryptodome = ">=3.21"  # for reading .pdf files: PyCryptodome is required for AES algorithm
+# file systems
+fsspec = ">=2024.10"  # base/local file system
+adlfs = ">=2024.7"  # Azure Data Lake
+gcsfs = ">=2024.10"  # Google Cloud Storage
+s3fs = ">=2024.10"  # S3
+# misc / other
+certifi = ">2024.12"
+google-api-python-client = ">=2.155"
+googlesearch-python = ">=1.2"
+httpx = ">=0.28"
+loguru = ">=0.7"
+pydantic = ">=2.10"
+python-dotenv = ">=1.0"
+tqdm = ">=4.67"
+
+# optional dependencies required by extras
+streamlit = {version = ">=1.41", optional = true}
+streamlit-extras = {version = ">=0.5", optional = true}
+streamlit-mic-recorder = {version = ">=0.0.8", optional = true}
+
+langchainhub = ">=0.1"
+faiss-cpu = ">=1.9"
+
+[tool.poetry.extras]
+contrib = [
+  "streamlit",
+  "streamlit-extras",
+  "streamlit-mic-recorder",
+]
+
+langchain = [
+  "langchainhub",
+  "faiss-cpu",
+]
+
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = [
+  "poetry-core >= 1.9",
+]
+
+
+# pylint.readthedocs.io/en/latest/user_guide/usage/run.html
+# pylint.readthedocs.io/en/latest/user_guide/configuration/index.html
+[tool.pylint."messages control"]
+disable = [
+  "astroid-error",
+  "attribute-defined-outside-init",
+  "duplicate-code",
+  "fixme",
+  "import-error",
+  "invalid-name",
+  "line-too-long",
+  "missing-class-docstring",
+  "missing-function-docstring",
+  "missing-module-docstring",
+  "no-name-in-module",
+  "raw-checker-failed",
+  "redefined-outer-name",
+  "relative-beyond-top-level",
+  "too-few-public-methods",
+  "too-many-positional-arguments",
+  "unexpected-keyword-arg",
+  "unknown-option-value",
+  "unnecessary-pass",
+]
+
+
+[tool.pytest.ini_options]
+addopts = [
+  "--import-mode=importlib",
+]
+filterwarnings = [
+  "ignore:pkg_resources is deprecated as an API:DeprecationWarning",
+  "ignore:Deprecated call to `pkg_resources.declare_namespace.*google.*:DeprecationWarning",
+]

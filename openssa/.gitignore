@@ -1,0 +1,51 @@
+# PYTHON & related
+# ================
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+.mypy_cache/
+poetry.lock
+__pycache__/
+.pytest_cache/
+.ropeproject/
+.venv/
+
+
+# DOCUMENTATION
+# =============
+docs/_build/
+
+
+# ENVIRONMENT VARIABLES
+# =====================
+.env
+
+
+# IDEs
+# ====
+
+# IntelliJ IDEA / PyCharm
+.idea/
+
+# Visual Studio Code
+*.code-workspace
+
+
+# MISC / OTHER
+# ============
+.DS_Store
+
+
+# DATA & EXAMPLE FILES
+# ====================
+examples/**/*.json
+!examples/**/package.json
+!examples/**/package-lock.json
+
+
+# Exception
+!examples/semiconductor/semiconductor-ui/api/poetry.lock
+
+.openssa/
+test*.ipynb
+tmp/

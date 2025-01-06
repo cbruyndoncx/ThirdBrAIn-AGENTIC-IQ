@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/aitomatic/openssa.git
+	branch = main
+	commit = c20e0143cfff9318e099c27ebdac90774db1fb5d
+	parent = 989d40372111f415f09afc6110efd90b9e7b1bed
+	method = merge
+	cmdver = 0.4.9

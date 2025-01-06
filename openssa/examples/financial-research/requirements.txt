@@ -1,0 +1,7 @@
+OpenSSA[contrib] @ https://GitHub.com/Aitomatic/OpenSSA/archive/main.zip
+
+Mechanize >= 0.4
+PDFKit >= 1.0
+PyHTML2PDF >= 0.0.7
+Pyppeteer >= 2.0
+XHTML2PDF >= 0.2
