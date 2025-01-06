@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/ShoggothAI/motleycrew.git
+	branch = main
+	commit = 19837e76c89f1e96707dbe2c334360682c47b890
+	parent = 39adbbb1d5a0e29c36230fdad4cf2696cd515400
+	method = merge
+	cmdver = 0.4.9
