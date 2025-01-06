@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/lobehub/lobe-chat.git
+	branch = main
+	commit = 20f28092c63aa29c69203a89a965e7beac6b4006
+	parent = b8c0c160f67f43a48c2275b0c64ad137e1001399
+	method = merge
+	cmdver = 0.4.9
