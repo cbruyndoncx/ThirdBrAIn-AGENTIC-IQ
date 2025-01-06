@@ -1,0 +1,146 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentops"
+version = "0.3.21"
+authors = [
+  { name="Alex Reibman", email="areibman@gmail.com" },
+  { name="Shawn Qiu", email="siyangqiu@gmail.com" },
+  { name="Braelyn Boynton", email="bboynton97@gmail.com" },
+  { name="Howard Gil", email="howardbgil@gmail.com" },
+  { name="Constantin Teodorescu", email="teocns@gmail.com" },
+  { name="Pratyush Shukla", email="ps4534@nyu.edu" }
+]
+description = "Observability and DevTool Platform for AI Agents"
+readme = "README.md"
+requires-python = ">=3.9,<3.14"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.0.0,<3.0.0",
+    "psutil>=5.9.8,<6.1.0",
+    "termcolor>=2.3.0,<2.5.0",
+    "PyYAML>=5.3,<7.0",
+    "opentelemetry-api>=1.22.0,<2.0.0",
+    "opentelemetry-sdk>=1.22.0,<2.0.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.22.0,<2.0.0",
+    # "typing-extensions>=4.9.0; python_version >= '3.8'",
+    # "pydantic>=2.7.4,<3.0.0; python_version < '3.13'",
+    # "pydantic-core>=2.23.4; python_version >= '3.8' and python_version < '3.13'"
+]
+
+[dependency-groups]
+test = [
+    "openai>=1.0.0,<2.0.0",
+    "langchain",
+    "pytest-cov",
+]
+
+dev = [
+    # Testing essentials
+    "pytest>=7.4.0,<8.0.0",          # Testing framework with good async support
+    "pytest-depends",         # For testing complex agent workflows
+    "pytest-asyncio",         # Async test support for testing concurrent agent operations
+    "pytest-mock",           # Mocking capabilities for isolating agent components
+    "pyfakefs",             # File system testing
+    "pytest-recording",      # Alternative to pytest-vcr with better Python 3.x support
+    "vcrpy @ git+https://github.com/kevin1024/vcrpy.git@81978659f1b18bbb7040ceb324a19114e4a4f328",
+    # Code quality and type checking
+    "ruff",                  # Fast Python linter for maintaining code quality
+    "mypy",                # Static type checking for better reliability
+    "types-requests",      # Type stubs for requests library
+    
+    # HTTP mocking and environment
+    "requests_mock>=1.11.0", # Mock HTTP requests for testing agent external communications
+    "python-dotenv",         # Environment management for secure testing
+    
+    # Agent integration testing
+]
+
+# CI dependencies
+ci = [
+    "tach~=0.9"         # Task runner for CI/CD pipelines
+]
+
+[project.urls]
+Homepage = "https://github.com/AgentOps-AI/agentops"
+Issues = "https://github.com/AgentOps-AI/agentops/issues"
+
+[tool.uv]
+compile-bytecode = true  # Enable bytecode compilation for better performance
+default-groups = ["test", "dev"]  # Default groups to install for development
+
+[tool.autopep8]
+max_line_length = 120
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function" # WARNING: Changing this may break tests. A `module`-scoped session might be faster, but also unstable.
+test_paths = [
+    "tests",
+]
+addopts = "--tb=short -p no:warnings"
+pythonpath = ["."]
+faulthandler_timeout = 30  # Reduced from 60
+timeout = 60  # Reduced from 300
+disable_socket = true  # Add this to prevent hanging on socket cleanup
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = [
+    "F401",  # Unused imports
+    "E712",  # Comparison to True/False
+    "E711",  # Comparison to None
+    "E722",  # Bare except
+    "F821",  # Undefined names
+    "F841",  # Unused variables
+]
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".github",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".vscode",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "docs",
+    "examples",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "tests/core_manual_tests",
+]
+
+[tool.setuptools]
+packages = ["agentops"]

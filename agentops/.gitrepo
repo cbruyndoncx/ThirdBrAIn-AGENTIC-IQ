@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/AgentOps-AI/agentops.git
+	branch = main
+	commit = 1ec7784a7e2cf4856648b0a10245ac44f89ec5d1
+	parent = 2266631a28a72d804510de00ecf4ad1ae3a4cfef
+	method = merge
+	cmdver = 0.4.9
