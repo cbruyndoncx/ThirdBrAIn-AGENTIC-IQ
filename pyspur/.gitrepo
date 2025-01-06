@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/PySpur-Dev/pyspur.git
+	branch = main
+	commit = 07b32cabe0926c7c63ff25666e3f82ddf21026de
+	parent = ed972012fd29c3a301ea6ad221bdd014dc3319c6
+	method = merge
+	cmdver = 0.4.9
