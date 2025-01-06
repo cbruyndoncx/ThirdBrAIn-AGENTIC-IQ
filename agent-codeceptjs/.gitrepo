@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/Visual-Regression-Tracker/agent-codeceptjs.git
+	branch = master
+	commit = f200ba274108f0dbeeaaf4a031c4e57d5f357bcf
+	parent = a10b19fa5bb176fab08b89bfe259b83687c4edec
+	method = merge
+	cmdver = 0.4.9
