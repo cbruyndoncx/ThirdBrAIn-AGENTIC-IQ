@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/jbexta/AgentPilot.git
+	branch = master
+	commit = 5c36aac38d3e615c163d9b96770795cc1f502844
+	parent = 22c30e9c3d71197362346b4c388ff75ad7d93b54
+	method = merge
+	cmdver = 0.4.9
