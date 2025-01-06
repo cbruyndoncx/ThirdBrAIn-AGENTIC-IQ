@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/assafelovic/gpt-researcher.git
+	branch = master
+	commit = 079be6758424955ec90cec948b4e4f3892538ef8
+	parent = ff6f37cb8530f62ec01634a100fcb958ff373755
+	method = merge
+	cmdver = 0.4.9
