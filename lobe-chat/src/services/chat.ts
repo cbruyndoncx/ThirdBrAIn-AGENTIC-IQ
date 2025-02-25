@@ -3,11 +3,12 @@ import { produce } from 'immer';
 import { merge } from 'lodash-es';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
+import { enableAuth } from '@/const/auth';
 import { INBOX_GUIDE_SYSTEMROLE } from '@/const/guide';
 import { INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_AGENT_CONFIG } from '@/const/settings';
 import { TracePayload, TraceTagMap } from '@/const/trace';
-import { isServerMode } from '@/const/version';
+import { isDeprecatedEdition, isServerMode } from '@/const/version';
 import {
   AgentRuntime,
   AgentRuntimeError,
@@ -16,6 +17,8 @@ import {
 } from '@/libs/agent-runtime';
 import { filesPrompts } from '@/prompts/files';
 import { BuiltinSystemRolePrompts } from '@/prompts/systemRole';
+import { aiModelSelectors, aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
+import { getAgentChatConfig } from '@/store/chat/slices/aiChat/actions/helpers';
 import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
 import { useToolStore } from '@/store/tool';
@@ -27,6 +30,7 @@ import {
   preferenceSelectors,
   userProfileSelectors,
 } from '@/store/user/selectors';
+import { WebBrowsingManifest } from '@/tools/web-browsing';
 import { ChatErrorType } from '@/types/fetch';
 import { ChatMessage, MessageToolCall } from '@/types/message';
 import type { ChatStreamPayload, OpenAIChatMessage } from '@/types/openai/chat';
@@ -36,8 +40,54 @@ import { FetchSSEOptions, fetchSSE, getMessageError } from '@/utils/fetch';
 import { genToolCallingName } from '@/utils/toolCall';
 import { createTraceHeader, getTraceId } from '@/utils/trace';
 
-import { createHeaderWithAuth, getProviderAuthPayload } from './_auth';
+import { createHeaderWithAuth, createPayloadWithKeyVaults } from './_auth';
 import { API_ENDPOINTS } from './_url';
+
+const isCanUseFC = (model: string, provider: string) => {
+  // TODO: remove isDeprecatedEdition condition in V2.0
+  if (isDeprecatedEdition) {
+    return modelProviderSelectors.isModelEnabledFunctionCall(model)(useUserStore.getState());
+  }
+
+  return aiModelSelectors.isModelSupportToolUse(model, provider)(useAiInfraStore.getState());
+};
+
+/**
+ * TODO: we need to update this function to auto find deploymentName with provider setting config
+ */
+const findDeploymentName = (model: string, provider: string) => {
+  let deploymentId = model;
+
+  // TODO: remove isDeprecatedEdition condition in V2.0
+  if (isDeprecatedEdition) {
+    const chatModelCards = modelProviderSelectors.getModelCardsById(ModelProvider.Azure)(
+      useUserStore.getState(),
+    );
+
+    const deploymentName = chatModelCards.find((i) => i.id === model)?.deploymentName;
+    if (deploymentName) deploymentId = deploymentName;
+  } else {
+    // find the model by id
+    const modelItem = useAiInfraStore
+      .getState()
+      .enabledAiModels?.find((i) => i.id === model && i.providerId === provider);
+
+    if (modelItem && modelItem.config?.deploymentName) {
+      deploymentId = modelItem.config?.deploymentName;
+    }
+  }
+
+  return deploymentId;
+};
+
+const isEnableFetchOnClient = (provider: string) => {
+  // TODO: remove this condition in V2.0
+  if (isDeprecatedEdition) {
+    return modelConfigSelectors.isProviderFetchOnClient(provider)(useUserStore.getState());
+  } else {
+    return aiProviderSelectors.isProviderFetchOnClient(provider)(useAiInfraStore.getState());
+  }
+};
 
 interface FetchOptions extends FetchSSEOptions {
   historySummary?: string;
@@ -82,90 +132,25 @@ interface CreateAssistantMessageStream extends FetchSSEOptions {
  * **Note**: if you try to fetch directly, use `fetchOnClient` instead.
  */
 export function initializeWithClientStore(provider: string, payload: any) {
-  // add auth payload
-  const providerAuthPayload = getProviderAuthPayload(provider);
+  /**
+   * Since #5267, we map parameters for client-fetch in function `getProviderAuthPayload`
+   * which called by `createPayloadWithKeyVaults` below.
+   * @see https://github.com/lobehub/lobe-chat/pull/5267
+   * @file src/services/_auth.ts
+   */
+  const providerAuthPayload = { ...payload, ...createPayloadWithKeyVaults(provider) };
   const commonOptions = {
-    // Some provider base openai sdk, so enable it run on browser
+    // Allow OpenAI SDK and Anthropic SDK run on browser
     dangerouslyAllowBrowser: true,
   };
-  let providerOptions = {};
-
-  switch (provider) {
-    default:
-    case ModelProvider.OpenAI: {
-      providerOptions = {
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Azure: {
-      providerOptions = {
-        apiKey: providerAuthPayload?.apiKey,
-        apiVersion: providerAuthPayload?.azureApiVersion,
-      };
-      break;
-    }
-    case ModelProvider.Google: {
-      providerOptions = {
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Bedrock: {
-      if (providerAuthPayload?.apiKey) {
-        providerOptions = {
-          accessKeyId: providerAuthPayload?.awsAccessKeyId,
-          accessKeySecret: providerAuthPayload?.awsSecretAccessKey,
-          region: providerAuthPayload?.awsRegion,
-          sessionToken: providerAuthPayload?.awsSessionToken,
-        };
-      }
-      break;
-    }
-    case ModelProvider.Ollama: {
-      providerOptions = {
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Perplexity: {
-      providerOptions = {
-        apikey: providerAuthPayload?.apiKey,
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Anthropic: {
-      providerOptions = {
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Groq: {
-      providerOptions = {
-        apikey: providerAuthPayload?.apiKey,
-        baseURL: providerAuthPayload?.baseURL,
-      };
-      break;
-    }
-    case ModelProvider.Cloudflare: {
-      providerOptions = {
-        apikey: providerAuthPayload?.apiKey,
-        baseURLOrAccountID: providerAuthPayload?.cloudflareBaseURLOrAccountID,
-      };
-      break;
-    }
-  }
-
   /**
    * Configuration override order:
-   * payload -> providerOptions -> providerAuthPayload -> commonOptions
+   * payload -> providerAuthPayload -> commonOptions
    */
   return AgentRuntime.initializeWithProviderOptions(provider, {
     [provider]: {
       ...commonOptions,
       ...providerAuthPayload,
-      ...providerOptions,
       ...payload,
     },
   });
@@ -184,25 +169,44 @@ class ChatService {
       },
       params,
     );
+
+    // =================== 0. process search =================== //
+    const chatConfig = getAgentChatConfig();
+
+    const enabledSearch = chatConfig.searchMode !== 'off';
+    const isModelHasBuiltinSearch = aiModelSelectors.isModelHasBuiltinSearch(
+      payload.model,
+      payload.provider!,
+    )(useAiInfraStore.getState());
+
+    const useApplicationBuiltinSearchTool =
+      enabledSearch && !(isModelHasBuiltinSearch && chatConfig.useModelBuiltinSearch);
+
+    const pluginIds = [...(enabledPlugins || [])];
+
+    if (useApplicationBuiltinSearchTool) {
+      pluginIds.push(WebBrowsingManifest.identifier);
+    }
+
     // ============  1. preprocess messages   ============ //
 
     const oaiMessages = this.processMessages(
       {
         messages,
         model: payload.model,
-        tools: enabledPlugins,
+        provider: payload.provider!,
+        tools: pluginIds,
       },
       options,
     );
 
     // ============  2. preprocess tools   ============ //
 
-    const filterTools = toolSelectors.enabledSchema(enabledPlugins)(useToolStore.getState());
+    let filterTools = toolSelectors.enabledSchema(pluginIds)(useToolStore.getState());
 
     // check this model can use function call
-    const canUseFC = modelProviderSelectors.isModelEnabledFunctionCall(payload.model)(
-      useUserStore.getState(),
-    );
+    const canUseFC = isCanUseFC(payload.model, payload.provider!);
+
     // the rule that model can use tools:
     // 1. tools is not empty
     // 2. model can use function call
@@ -210,7 +214,41 @@ class ChatService {
 
     const tools = shouldUseTools ? filterTools : undefined;
 
-    return this.getChatCompletion({ ...params, messages: oaiMessages, tools }, options);
+    // ============  3. process extend params   ============ //
+
+    let extendParams: Record<string, any> = {};
+
+    const isModelHasExtendParams = aiModelSelectors.isModelHasExtendParams(
+      payload.model,
+      payload.provider!,
+    )(useAiInfraStore.getState());
+
+    // model
+    if (isModelHasExtendParams) {
+      const modelExtendParams = aiModelSelectors.modelExtendParams(
+        payload.model,
+        payload.provider!,
+      )(useAiInfraStore.getState());
+      // if model has extended params, then we need to check if the model can use reasoning
+
+      if (modelExtendParams!.includes('enableReasoning') && chatConfig.enableReasoning) {
+        extendParams.thinking = {
+          budget_tokens: chatConfig.reasoningBudgetToken || 1024,
+          type: 'enabled',
+        };
+      }
+    }
+
+    return this.getChatCompletion(
+      {
+        ...params,
+        ...extendParams,
+        enabledSearch: enabledSearch && isModelHasBuiltinSearch ? true : undefined,
+        messages: oaiMessages,
+        tools,
+      },
+      options,
+    );
   };
 
   createAssistantMessageStream = async ({
@@ -241,16 +279,20 @@ class ChatService {
 
     const { provider = ModelProvider.OpenAI, ...res } = params;
 
+    // =================== process model =================== //
+    // ===================================================== //
     let model = res.model || DEFAULT_AGENT_CONFIG.model;
 
     // if the provider is Azure, get the deployment name as the request model
-    if (provider === ModelProvider.Azure) {
-      const chatModelCards = modelProviderSelectors.getModelCardsById(provider)(
-        useUserStore.getState(),
-      );
+    const providersWithDeploymentName = [
+      ModelProvider.Azure,
+      ModelProvider.Volcengine,
+      ModelProvider.Doubao,
+      ModelProvider.AzureAI,
+    ] as string[];
 
-      const deploymentName = chatModelCards.find((i) => i.id === model)?.deploymentName;
-      if (deploymentName) model = deploymentName;
+    if (providersWithDeploymentName.includes(provider)) {
+      model = findDeploymentName(model, provider);
     }
 
     const payload = merge(
@@ -261,9 +303,7 @@ class ChatService {
     /**
      * Use browser agent runtime
      */
-    const enableFetchOnClient = modelConfigSelectors.isProviderFetchOnClient(provider)(
-      useUserStore.getState(),
-    );
+    let enableFetchOnClient = isEnableFetchOnClient(provider);
 
     let fetcher: typeof fetch | undefined = undefined;
 
@@ -302,7 +342,19 @@ class ChatService {
 
     const providerConfig = DEFAULT_MODEL_PROVIDER_LIST.find((item) => item.id === provider);
 
-    return fetchSSE(API_ENDPOINTS.chat(provider), {
+    let sdkType = provider;
+    const isBuiltin = Object.values(ModelProvider).includes(provider as any);
+
+    // TODO: remove `!isDeprecatedEdition` condition in V2.0
+    if (!isDeprecatedEdition && !isBuiltin) {
+      const providerConfig = aiProviderSelectors.providerConfigById(provider)(
+        useAiInfraStore.getState(),
+      );
+
+      sdkType = providerConfig?.settings.sdkType || 'openai';
+    }
+
+    return fetchSSE(API_ENDPOINTS.chat(sdkType), {
       body: JSON.stringify(payload),
       fetcher: fetcher,
       headers,
@@ -312,9 +364,13 @@ class ChatService {
       onFinish: options?.onFinish,
       onMessageHandle: options?.onMessageHandle,
       signal,
-      // use smoothing when enable client fetch
-      // https://github.com/lobehub/lobe-chat/issues/3800
-      smoothing: providerConfig?.smoothing || enableFetchOnClient,
+      smoothing:
+        providerConfig?.settings?.smoothing ||
+        // @deprecated in V2
+        providerConfig?.smoothing ||
+        // use smoothing when enable client fetch
+        // https://github.com/lobehub/lobe-chat/issues/3800
+        enableFetchOnClient,
     });
   };
 
@@ -394,9 +450,11 @@ class ChatService {
       messages,
       tools,
       model,
+      provider,
     }: {
       messages: ChatMessage[];
       model: string;
+      provider: string;
       tools?: string[];
     },
     options?: FetchOptions,
@@ -467,9 +525,7 @@ class ChatService {
 
       // Inject Tool SystemRole
       const hasTools = tools && tools?.length > 0;
-      const hasFC =
-        hasTools &&
-        modelProviderSelectors.isModelEnabledFunctionCall(model)(useUserStore.getState());
+      const hasFC = hasTools && isCanUseFC(model, provider);
       const toolsSystemRoles =
         hasFC && toolSelectors.enabledSystemRoles(tools)(useToolStore.getState());
 
@@ -529,7 +585,7 @@ class ChatService {
      * if enable login and not signed in, return unauthorized error
      */
     const userStore = useUserStore.getState();
-    if (userStore.enableAuth() && !userStore.isSignedIn) {
+    if (enableAuth && !userStore.isSignedIn) {
       throw AgentRuntimeError.createError(ChatErrorType.InvalidAccessCode);
     }
 

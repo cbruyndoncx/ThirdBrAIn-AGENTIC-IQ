@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/lobehub/lobe-chat.git
 	branch = main
-	commit = 20f28092c63aa29c69203a89a965e7beac6b4006
-	parent = b8c0c160f67f43a48c2275b0c64ad137e1001399
+	commit = 3659bbc2cb574aa31e1b2dbd77efb514c3692558
+	parent = c40e0109a5762c91ff21a4d554599a0d0e8b292f
 	method = merge
 	cmdver = 0.4.9

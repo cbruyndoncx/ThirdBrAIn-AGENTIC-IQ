@@ -4,7 +4,7 @@ import { memo, useMemo } from 'react';
 
 import { ModelItemRender, ProviderItemRender } from '@/components/ModelSelect';
 import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
-import { EnabledProviderWithModels } from '@/types/aiModel';
+import { EnabledProviderWithModels } from '@/types/aiProvider';
 
 const useStyles = createStyles(({ css, prefixCls }) => ({
   select: css`
@@ -46,7 +46,14 @@ const ModelSelect = memo<ModelSelectProps>(({ value, onChange, showAbility = tru
     }
 
     return enabledList.map((provider) => ({
-      label: <ProviderItemRender name={provider.name} provider={provider.id} />,
+      label: (
+        <ProviderItemRender
+          logo={provider.logo}
+          name={provider.name}
+          provider={provider.id}
+          source={provider.source}
+        />
+      ),
       options: getChatModels(provider),
     }));
   }, [enabledList]);

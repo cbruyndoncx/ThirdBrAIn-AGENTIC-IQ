@@ -14,16 +14,18 @@ import { idGenerator } from '@/database/utils/idGenerator';
 import {
   ChatFileItem,
   ChatImageItem,
+  ChatMessage,
   ChatTTS,
   ChatToolPayload,
+  ChatTranslate,
   CreateMessageParams,
+  MessageItem,
   ModelRankItem,
 } from '@/types/message';
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
 
 import {
-  MessageItem,
   MessagePluginItem,
   NewMessageQuery,
   chunks,
@@ -61,7 +63,7 @@ export class MessageModel {
     options: {
       postProcessUrl?: (path: string | null, file: { fileType: string }) => Promise<string>;
     } = {},
-  ): Promise<MessageItem[]> => {
+  ) => {
     const offset = current * pageSize;
 
     // 1. get basic messages
@@ -71,6 +73,9 @@ export class MessageModel {
         id: messages.id,
         role: messages.role,
         content: messages.content,
+        reasoning: messages.reasoning,
+        search: messages.search,
+        metadata: messages.metadata,
         error: messages.error,
 
         model: messages.model,
@@ -220,10 +225,11 @@ export class MessageModel {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             .map<ChatImageItem>(({ id, url, name }) => ({ alt: name!, id, url })),
 
+          meta: {},
           ragQuery: messageQuery?.rewriteQuery,
           ragQueryId: messageQuery?.id,
           ragRawQuery: messageQuery?.userQuery,
-        };
+        } as unknown as ChatMessage;
       },
     );
   };
@@ -252,27 +258,33 @@ export class MessageModel {
     return result[0];
   };
 
-  queryAll = async (): Promise<MessageItem[]> => {
-    return this.db
+  queryAll = async () => {
+    const result = await this.db
       .select()
       .from(messages)
       .orderBy(messages.createdAt)
       .where(eq(messages.userId, this.userId));
+
+    return result as MessageItem[];
   };
 
-  queryBySessionId = async (sessionId?: string | null): Promise<MessageItem[]> => {
-    return this.db.query.messages.findMany({
+  queryBySessionId = async (sessionId?: string | null) => {
+    const result = await this.db.query.messages.findMany({
       orderBy: [asc(messages.createdAt)],
       where: and(eq(messages.userId, this.userId), this.matchSession(sessionId)),
     });
+
+    return result as MessageItem[];
   };
 
-  queryByKeyword = async (keyword: string): Promise<MessageItem[]> => {
+  queryByKeyword = async (keyword: string) => {
     if (!keyword) return [];
-    return this.db.query.messages.findMany({
+    const result = await this.db.query.messages.findMany({
       orderBy: [desc(messages.createdAt)],
       where: and(eq(messages.userId, this.userId), like(messages.content, `%${keyword}%`)),
     });
+
+    return result as MessageItem[];
   };
 
   count = async (params?: {
@@ -414,6 +426,8 @@ export class MessageModel {
       pluginState,
       fileChunks,
       ragQueryId,
+      updatedAt,
+      createdAt,
       ...message
     }: CreateMessageParams,
     id: string = this.genId(),
@@ -423,9 +437,12 @@ export class MessageModel {
         .insert(messages)
         .values({
           ...message,
+          // TODO: remove this when the client is updated
+          createdAt: createdAt ? new Date(createdAt) : undefined,
           id,
           model: fromModel,
           provider: fromProvider,
+          updatedAt: updatedAt ? new Date(updatedAt) : undefined,
           userId: this.userId,
         })
         .returning()) as MessageItem[];
@@ -466,7 +483,8 @@ export class MessageModel {
 
   batchCreate = async (newMessages: MessageItem[]) => {
     const messagesToInsert = newMessages.map((m) => {
-      return { ...m, userId: this.userId };
+      // TODO: need a better way to handle this
+      return { ...m, role: m.role as any, userId: this.userId };
     });
 
     return this.db.insert(messages).values(messagesToInsert);
@@ -482,7 +500,11 @@ export class MessageModel {
   update = async (id: string, message: Partial<MessageItem>) => {
     return this.db
       .update(messages)
-      .set(message)
+      .set({
+        ...message,
+        // TODO: need a better way to handle this
+        role: message.role as any,
+      })
       .where(and(eq(messages.id, id), eq(messages.userId, this.userId)));
   };
 
@@ -507,7 +529,7 @@ export class MessageModel {
     return this.db.update(messagePlugins).set(value).where(eq(messagePlugins.id, id));
   };
 
-  updateTranslate = async (id: string, translate: Partial<MessageItem>) => {
+  updateTranslate = async (id: string, translate: Partial<ChatTranslate>) => {
     const result = await this.db.query.messageTranslates.findFirst({
       where: and(eq(messageTranslates.id, id)),
     });
@@ -555,7 +577,9 @@ export class MessageModel {
       if (message.length === 0) return;
 
       // 2. 检查 message 是否包含 tools
-      const toolCallIds = message[0].tools?.map((tool: ChatToolPayload) => tool.id).filter(Boolean);
+      const toolCallIds = (message[0].tools as ChatToolPayload[])
+        ?.map((tool) => tool.id)
+        .filter(Boolean);
 
       let relatedMessageIds: string[] = [];
 

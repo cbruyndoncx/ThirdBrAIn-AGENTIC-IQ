@@ -9,9 +9,10 @@ import {
   genWhere,
 } from '@/database/utils/genWhere';
 import { idGenerator } from '@/database/utils/idGenerator';
+import { MessageItem } from '@/types/message';
 import { TopicRankItem } from '@/types/topic';
 
-import { NewMessage, TopicItem, messages, topics } from '../../schemas';
+import { TopicItem, messages, topics } from '../../schemas';
 
 export interface CreateTopicParams {
   favorite?: boolean;
@@ -223,6 +224,7 @@ export class TopicModel {
         .insert(topics)
         .values({
           ...originalTopic,
+          clientId: null,
           id: this.genId(),
           title: newTitle || originalTopic?.title,
         })
@@ -241,10 +243,11 @@ export class TopicModel {
             .insert(messages)
             .values({
               ...message,
+              clientId: null,
               id: idGenerator('messages'),
               topicId: duplicatedTopic.id,
             })
-            .returning()) as NewMessage[];
+            .returning()) as MessageItem[];
 
           return result[0];
         }),

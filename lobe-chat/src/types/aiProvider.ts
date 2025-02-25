@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AiModelSourceType, AiModelType, ModelAbilities } from '@/types/aiModel';
+import { AiModelForSelect, EnabledAiModel, ModelSearchImplementType } from '@/types/aiModel';
 import { SmoothingParams } from '@/types/llm';
 
 export const AiProviderSourceEnum = {
@@ -16,13 +16,18 @@ export type AiProviderSourceType = (typeof AiProviderSourceEnum)[keyof typeof Ai
 export const AiProviderSDKEnum = {
   Anthropic: 'anthropic',
   Azure: 'azure',
+  AzureAI: 'azureai',
   Bedrock: 'bedrock',
   Cloudflare: 'cloudflare',
+  /**
+   * @deprecated
+   */
+  Doubao: 'doubao',
   Google: 'google',
   Huggingface: 'huggingface',
   Ollama: 'ollama',
   Openai: 'openai',
-  Wenxin: 'wenxin',
+  Volcengine: 'volcengine',
 } as const;
 
 export type AiProviderSDKType = (typeof AiProviderSDKEnum)[keyof typeof AiProviderSDKEnum];
@@ -72,6 +77,13 @@ export interface AiProviderSettings {
    * @default false
    */
   disableBrowserRequest?: boolean;
+  /**
+   * whether provider support edit model
+   *
+   * @default true
+   */
+  modelEditable?: boolean;
+
   proxyUrl?:
     | {
         desc?: string;
@@ -84,7 +96,8 @@ export interface AiProviderSettings {
    * default openai
    */
   sdkType?: AiProviderSDKType;
-
+  searchMode?: ModelSearchImplementType;
+  showAddNewModel?: boolean;
   /**
    * whether show api key in the provider config
    * so provider like ollama don't need api key field
@@ -157,8 +170,8 @@ export interface AiProviderDetailItem {
 // Update
 export const UpdateAiProviderSchema = z.object({
   config: z.object({}).passthrough().optional(),
-  description: z.string().optional(),
-  logo: z.string().optional(),
+  description: z.string().nullable().optional(),
+  logo: z.string().nullable().optional(),
   name: z.string(),
   sdkType: z.enum(['openai', 'anthropic']).optional(),
 });
@@ -167,7 +180,7 @@ export type UpdateAiProviderParams = z.infer<typeof UpdateAiProviderSchema>;
 
 export const UpdateAiProviderConfigSchema = z.object({
   checkModel: z.string().optional(),
-  fetchOnClient: z.boolean().optional(),
+  fetchOnClient: z.boolean().nullable().optional(),
   keyVaults: z.object({}).passthrough().optional(),
 });
 
@@ -182,21 +195,27 @@ export interface AiProviderSortMap {
 
 export interface EnabledProvider {
   id: string;
+  logo?: string;
   name?: string;
-  source: AiModelSourceType;
+  source: AiProviderSourceType;
 }
 
-export interface EnabledAiModel {
-  abilities: ModelAbilities;
-  contextWindowTokens?: number;
-  displayName?: string;
+export interface EnabledProviderWithModels {
+  children: AiModelForSelect[];
   id: string;
-  providerId: string;
-  type: AiModelType;
+  logo?: string;
+  name: string;
+  source: AiProviderSourceType;
 }
 
-export interface AiProviderInitState {
+export interface AiProviderRuntimeConfig {
+  fetchOnClient?: boolean;
+  keyVaults: Record<string, string>;
+  settings: AiProviderSettings;
+}
+
+export interface AiProviderRuntimeState {
   enabledAiModels: EnabledAiModel[];
   enabledAiProviders: EnabledProvider[];
-  keyVaults: Record<string, object>;
+  runtimeConfig: Record<string, AiProviderRuntimeConfig>;
 }
