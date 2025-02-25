@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/StreetLamb/tribe.git
 	branch = master
-	commit = 1c433b0f55dc48edf7bc1602ff91d5d88e401fa2
-	parent = 1e06de31168aa778af0c82a997a64fa03e203ade
+	commit = e1c2020a7dd7377d1ec14292f113c53ddf50d917
+	parent = 020a8459f0b70c7972d90b86ab02072e5621b90d
 	method = merge
 	cmdver = 0.4.9
