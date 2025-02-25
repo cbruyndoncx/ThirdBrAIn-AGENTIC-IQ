@@ -1,264 +1,436 @@
 'use client'
 
-import type { CardProps, SwitchProps } from '@nextui-org/react'
+import type { CardProps, SwitchProps } from '@heroui/react'
 import React, { useState, useEffect } from 'react'
 import {
-  Card,
-  CardBody,
-  CardFooter,
-  Tabs,
-  Tab,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  Button,
-  useDisclosure,
-  Input,
-  extendVariants,
-  Switch,
-  cn,
-} from '@nextui-org/react'
+    Card,
+    CardBody,
+    CardFooter,
+    Tabs,
+    Tab,
+    Modal,
+    ModalContent,
+    ModalHeader,
+    ModalBody,
+    Button,
+    useDisclosure,
+    Input,
+    extendVariants,
+    Switch,
+    cn,
+    Divider,
+    ScrollShadow,
+    Accordion,
+    AccordionItem,
+} from '@heroui/react'
 import { Icon } from '@iconify/react'
 import { listApiKeys, setApiKey, getApiKey, deleteApiKey } from '@/utils/api'
 import { useTheme } from 'next-themes'
 
 // CellWrapper Component
 const CellWrapper = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ children, className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('flex items-center justify-between gap-2 rounded-medium bg-content2 p-4', className)}
-      {...props}
-    >
-      {children}
-    </div>
-  )
+    ({ children, className, ...props }, ref) => (
+        <div
+            ref={ref}
+            className={cn('flex items-center justify-between gap-2 rounded-medium bg-content2 p-4', className)}
+            {...props}
+        >
+            {children}
+        </div>
+    )
 )
 
 CellWrapper.displayName = 'CellWrapper'
 
 // CustomSwitch Component
 const CustomSwitch = extendVariants(Switch, {
-  variants: {
-    color: {
-      foreground: {
-        wrapper: ['group-data-[selected=true]:bg-foreground', 'group-data-[selected=true]:text-background'],
-      },
+    variants: {
+        color: {
+            foreground: {
+                wrapper: ['group-data-[selected=true]:bg-foreground', 'group-data-[selected=true]:text-background'],
+            },
+        },
     },
-  },
 })
 
 // SwitchCell Component
 type SwitchCellProps = Omit<SwitchProps, 'color'> & {
-  label: string
-  description: string
-  color?: SwitchProps['color'] | 'foreground'
-  classNames?: SwitchProps['classNames'] & {
-    description?: string | string[]
-  }
+    label: string
+    description: string
+    color?: SwitchProps['color'] | 'foreground'
+    classNames?: SwitchProps['classNames'] & {
+        description?: string | string[]
+    }
 }
 
-const SwitchCell = React.forwardRef<HTMLInputElement, SwitchCellProps>(
-  ({ label, description, classNames, ...props }, ref) => (
-    <CustomSwitch
-      ref={ref}
-      classNames={{
-        ...classNames,
-        base: cn(
-          'inline-flex bg-content2 flex-row-reverse w-full max-w-full items-center',
-          'justify-between cursor-pointer rounded-medium gap-2 p-4',
-          classNames?.base
-        ),
-      }}
-      {...props}
-    >
-      <div className="flex flex-col">
-        <p className={cn('text-medium', classNames?.label)}>{label}</p>
-        <p className={cn('text-small text-default-500', classNames?.description)}>{description}</p>
-      </div>
-    </CustomSwitch>
-  )
+const SwitchCell = React.forwardRef<HTMLDivElement, SwitchCellProps>(
+    ({ label, description, classNames, ...props }, ref) => (
+        <div ref={ref}>
+            <CustomSwitch
+                classNames={{
+                    ...classNames,
+                    base: cn(
+                        'inline-flex bg-content2 flex-row-reverse w-full max-w-full items-center',
+                        'justify-between cursor-pointer rounded-medium gap-2 p-4',
+                        classNames?.base
+                    ),
+                }}
+                {...props}
+            >
+                <div className="flex flex-col">
+                    <p className={cn('text-medium', classNames?.label)}>{label}</p>
+                    <p className={cn('text-small text-default-500', classNames?.description)}>{description}</p>
+                </div>
+            </CustomSwitch>
+        </div>
+    )
 )
 
 SwitchCell.displayName = 'SwitchCell'
 
+// Provider Types
+interface ProviderParameter {
+    name: string
+    description: string
+    required: boolean
+    type: string
+}
+
+interface ProviderConfig {
+    id: string
+    name: string
+    description: string
+    category: string
+    parameters: ProviderParameter[]
+    icon: string
+}
+
 // APIKeys Component
 const APIKeys = (props: CardProps): React.ReactElement => {
-  const [keys, setKeys] = useState<{ name: string; value: string }[]>([])
-  const [originalKeys, setOriginalKeys] = useState<{ name: string; value: string }[]>([])
+    const [keys, setKeys] = useState<{ name: string; value: string }[]>([])
+    const [originalKeys, setOriginalKeys] = useState<{ name: string; value: string }[]>([])
+    const [providers, setProviders] = useState<ProviderConfig[]>([])
+    const [selectedProvider, setSelectedProvider] = useState<ProviderConfig | null>(null)
 
-  const fetchApiKeys = async () => {
-    try {
-      const response = await listApiKeys()
-      const keyValues = await Promise.all(
-        response.map(async (key: string) => {
-          const value = await getApiKey(key)
-          return { name: value.name, value: value.value }
-        })
-      )
-
-      setKeys(keyValues)
-      setOriginalKeys(keyValues)
-    } catch (error) {
-      console.error('Error fetching API keys:', error)
-    }
-  }
-
-  useEffect(() => {
-    fetchApiKeys()
-  }, [])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setKeys((prevKeys) => prevKeys.map((key) => (key.name === name ? { ...key, value: value } : key)))
-  }
-
-  const handleDeleteKey = async (name: string) => {
-    try {
-      await deleteApiKey(name)
-      await fetchApiKeys() // Refresh the list after deletion
-    } catch (error) {
-      console.error('Error deleting API key:', error)
-    }
-  }
-
-  const saveApiKeys = async () => {
-    try {
-      await Promise.all(
-        keys.map(async ({ name, value }) => {
-          const originalKey = originalKeys.find((k) => k.name === name)
-          const trimmedValue = value.trim()
-
-          // Only save if the value has changed from its original masked value
-          if (originalKey && trimmedValue !== originalKey.value) {
-            if (trimmedValue !== '') {
-              await setApiKey(name, trimmedValue);
+    const fetchProviders = async () => {
+        try {
+            const response = await fetch('/api/env-mgmt/providers')
+            const data = await response.json()
+            if (Array.isArray(data)) {
+                setProviders(data)
             } else {
-              await handleDeleteKey(name);
+                console.error('Expected providers data to be an array')
+                setProviders([])
             }
-          }
-        })
-      );
-      await fetchApiKeys(); // Refresh the list after saving
-    } catch (error) {
-      console.error("Error saving API keys:", error);
+        } catch (error) {
+            console.error('Error fetching providers:', error)
+            setProviders([])
+        }
     }
-  };
 
-  const hasChanges = () => {
-    return keys.some((key) => {
-      const originalKey = originalKeys.find(k => k.name === key.name);
-      return originalKey && key.value.trim() !== originalKey.value;
-    });
-  };
+    const fetchApiKeys = async () => {
+        try {
+            const response = await listApiKeys()
+            const keyValues = await Promise.all(
+                response.map(async (key: string) => {
+                    const value = await getApiKey(key)
+                    return { name: value.name, value: value.value }
+                })
+            )
 
-  return (
-    <Card className="max-w-xl p-2" {...props}>
-      <CardBody className="grid grid-cols-1 gap-4">
-        {keys.map(({ name, value }) => (
-          <Input
-            key={name}
-            label={name}
-            labelPlacement="outside"
-            placeholder={`Enter value`}
-            name={name}
-            value={value}
-            onFocus={() =>
-              setKeys((prevKeys) =>
-                prevKeys.map((key) => (key.name === name ? { ...key, value: '' } : key))
-              )
-            }
-            onChange={handleInputChange}
-            endContent={
-              <Button isIconOnly variant="light" onPress={() => handleDeleteKey(name)}>
-                <Icon icon="solar:trash-bin-trash-bold" className="text-danger" width={20} />
-              </Button>
-            }
-          />
-        ))}
-      </CardBody>
-      {hasChanges() && (
-        <CardFooter className="flex justify-between">
-          <Button onPress={saveApiKeys} className="bg-primary text-white">
-            Save API Keys
-          </Button>
-          <Button onPress={() => setKeys(originalKeys)} className="bg-secondary text-primary">
-            Cancel
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
-  );
-};
+            setKeys(keyValues)
+            setOriginalKeys(keyValues)
+        } catch (error) {
+            console.error('Error fetching API keys:', error)
+        }
+    }
+
+    useEffect(() => {
+        fetchProviders()
+        fetchApiKeys()
+    }, [])
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target
+        setKeys((prevKeys) => prevKeys.map((key) => (key.name === name ? { ...key, value: value } : key)))
+    }
+
+    const handleDeleteKey = async (name: string) => {
+        try {
+            await deleteApiKey(name)
+            await fetchApiKeys()
+        } catch (error) {
+            console.error('Error deleting API key:', error)
+        }
+    }
+
+    const saveApiKeys = async () => {
+        try {
+            await Promise.all(
+                keys.map(async ({ name, value }) => {
+                    const originalKey = originalKeys.find((k) => k.name === name)
+                    const trimmedValue = value.trim()
+
+                    if (originalKey && trimmedValue !== originalKey.value) {
+                        if (trimmedValue !== '') {
+                            await setApiKey(name, trimmedValue)
+                        } else {
+                            await handleDeleteKey(name)
+                        }
+                    }
+                })
+            )
+            await fetchApiKeys()
+        } catch (error) {
+            console.error('Error saving API keys:', error)
+        }
+    }
+
+    const hasChanges = () => {
+        return keys.some((key) => {
+            const originalKey = originalKeys.find((k) => k.name === key.name)
+            return originalKey && key.value.trim() !== originalKey.value
+        })
+    }
+
+    const getProviderIcon = (iconName: string) => {
+        const iconMap: Record<string, string> = {
+            // LLM Providers
+            openai: 'logos:openai-icon',
+            azure: 'logos:microsoft-azure',
+            anthropic: 'logos:anthropic',
+            google: 'logos:google-icon',
+            deepseek: 'solar:code-circle-bold',
+            cohere: 'solar:magic-stick-3-bold',
+            voyage: 'solar:rocket-bold',
+            mistral: 'solar:stars-bold',
+
+            // Vector Store Providers
+            pinecone: 'logos:pinecone',
+            weaviate: 'logos:weaviate',
+            qdrant: 'logos:qdrant',
+            chroma: 'solar:database-minimalistic-bold',
+            supabase: 'logos:supabase-icon',
+            database: 'solar:database-bold',
+
+            // Other Integrations
+            'solar:spider-bold': 'solar:spider-bold',  // For Firecrawl
+            'logos:slack-icon': 'logos:slack-icon',  // For Slack
+        }
+        return iconMap[iconName] || iconMap.database
+    }
+
+    const renderProviderGrid = () => {
+        const vectorStoreProviders = providers.filter((p) => p.category === 'vectorstore')
+        const llmProviders = providers.filter((p) => p.category === 'llm')
+        const otherProviders = providers.filter((p) => !['vectorstore', 'llm'].includes(p.category))
+
+        const renderProviderInputs = (provider: ProviderConfig) => {
+            return (
+                <div className="space-y-3 py-2">
+                    {provider.parameters.map((param) => {
+                        const key = keys.find((k) => k.name === param.name)
+                        return (
+                            <Input
+                                key={param.name}
+                                label={param.description}
+                                placeholder={`Enter ${param.description.toLowerCase()}`}
+                                name={param.name}
+                                value={key?.value || ''}
+                                type={param.type === 'password' ? 'password' : 'text'}
+                                size="sm"
+                                variant="bordered"
+                                isClearable
+                                onClear={() => handleDeleteKey(param.name)}
+                                onFocus={() =>
+                                    setKeys((prevKeys) =>
+                                        prevKeys.map((key) =>
+                                            key.name === param.name ? { ...key, value: '' } : key
+                                        )
+                                    )
+                                }
+                                onChange={handleInputChange}
+                            />
+                        )
+                    })}
+                </div>
+            )
+        }
+
+        const renderProviderSection = (
+            title: string,
+            description: string,
+            icon: string,
+            providerList: ProviderConfig[]
+        ) => {
+            if (providerList.length === 0) return null
+
+            return (
+                <Accordion>
+                    <AccordionItem
+                        key={title}
+                        aria-label={title}
+                        title={
+                            <div className="flex items-center gap-2">
+                                <Icon icon={icon} className="text-primary" width={20} />
+                                <div>
+                                    <h4 className="text-medium font-medium">{title}</h4>
+                                    <p className="text-tiny text-default-400">{description}</p>
+                                </div>
+                            </div>
+                        }
+                    >
+                        <div className="space-y-6 px-2">
+                            {providerList.map((provider) => (
+                                <Card key={provider.id} className="border border-default-200">
+                                    <CardBody className="gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <Icon icon={getProviderIcon(provider.icon)} width={24} />
+                                            <div>
+                                                <h5 className="text-small font-medium">{provider.name}</h5>
+                                                <p className="text-tiny text-default-400">{provider.description}</p>
+                                            </div>
+                                        </div>
+                                        {renderProviderInputs(provider)}
+                                    </CardBody>
+                                </Card>
+                            ))}
+                        </div>
+                    </AccordionItem>
+                </Accordion>
+            )
+        }
+
+        return (
+            <div className="space-y-4">
+                {renderProviderSection(
+                    'AI Models',
+                    'Configure your AI model providers',
+                    'solar:brain-bold',
+                    llmProviders
+                )}
+                {renderProviderSection(
+                    'Vector Databases',
+                    'Configure your vector database providers',
+                    'solar:database-bold',
+                    vectorStoreProviders
+                )}
+                {renderProviderSection(
+                    'Other Integrations',
+                    'Configure additional service providers',
+                    'solar:widget-bold',
+                    otherProviders
+                )}
+            </div>
+        )
+    }
+
+    return (
+        <Card {...props}>
+            <CardBody className="gap-4 p-0">{renderProviderGrid()}</CardBody>
+            {hasChanges() && (
+                <CardFooter className="px-0 pt-4">
+                    <div className="flex gap-2 ml-auto">
+                        <Button
+                            variant="light"
+                            onPress={() => {
+                                setKeys(originalKeys)
+                                setSelectedProvider(null)
+                            }}
+                            startContent={<Icon icon="solar:close-circle-bold" width={20} />}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="primary"
+                            onPress={saveApiKeys}
+                            startContent={<Icon icon="solar:disk-bold" width={20} />}
+                        >
+                            Save Changes
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
+        </Card>
+    )
+}
 
 // Main SettingsModal Component
 const SettingsModal = (props: CardProps): JSX.Element => {
-  const { isOpen, onOpen, onOpenChange } = useDisclosure()
-  const { theme, setTheme } = useTheme()
+    const { isOpen, onOpen, onOpenChange } = useDisclosure()
+    const { theme, setTheme } = useTheme()
 
-  return (
-    <>
-      <Button onPress={onOpen} variant="light" isIconOnly>
-        <Icon className="text-default-500" icon="solar:settings-linear" width={24} />
-      </Button>
+    return (
+        <>
+            <Button onPress={onOpen} variant="light" isIconOnly>
+                <Icon className="text-default-500" icon="solar:settings-linear" width={24} />
+            </Button>
 
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">Settings</ModalHeader>
-              <ModalBody>
-                <Card {...props}>
-                  <Tabs
-                    classNames={{
-                      tabList: 'mx-4 mt-6 text-medium',
-                      tabContent: 'text-small',
-                    }}
-                    size="lg"
-                  >
-                    <Tab
-                      key="appearance"
-                      textValue="Appearance"
-                      title={
-                        <div className="flex items-center gap-1.5">
-                          <Icon icon="solar:palette-bold" width={20} />
-                          <p>Appearance</p>
-                        </div>
-                      }
-                    >
-                      <div className="p-4">
-                        <SwitchCell
-                          label="Dark Mode"
-                          description="Toggle between light and dark theme"
-                          isSelected={theme === 'dark'}
-                          onValueChange={(isSelected) =>
-                            setTheme(isSelected ? 'dark' : 'light')
-                          }
-                        />
-                      </div>
-                    </Tab>
-                    <Tab
-                      key="api-keys"
-                      textValue="API Keys"
-                      title={
-                        <div className="flex items-center gap-1.5">
-                          <Icon icon="solar:user-id-bold" width={20} />
-                          <p>API Keys</p>
-                        </div>
-                      }
-                    >
-                      <APIKeys className="p-2 shadow-none" />
-                    </Tab>
-                  </Tabs>
-                </Card>
-              </ModalBody>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-    </>
-  );
-};
+            <Modal
+                isOpen={isOpen}
+                onOpenChange={onOpenChange}
+                size="2xl"
+                scrollBehavior="inside"
+                classNames={{
+                    base: 'max-h-[90vh]',
+                    body: 'p-0',
+                }}
+            >
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="flex flex-col gap-1">Settings</ModalHeader>
+                            <ModalBody>
+                                <Tabs
+                                    classNames={{
+                                        tabList: 'mx-4 mt-2',
+                                        panel: 'px-4 py-2',
+                                        cursor: 'bg-primary/20',
+                                        tab: 'max-w-fit px-4 h-10 data-[selected=true]:text-primary data-[selected=true]:font-medium',
+                                        tabContent: 'group-data-[selected=true]:text-primary',
+                                    }}
+                                >
+                                    <Tab
+                                        key="appearance"
+                                        title={
+                                            <div className="flex items-center gap-2">
+                                                <Icon icon="solar:palette-bold" width={20} />
+                                                <span>Appearance</span>
+                                            </div>
+                                        }
+                                    >
+                                        <Card className="border-none shadow-none bg-transparent">
+                                            <CardBody>
+                                                <SwitchCell
+                                                    label="Dark Mode"
+                                                    description="Toggle between light and dark theme"
+                                                    isSelected={theme === 'dark'}
+                                                    onValueChange={(isSelected) =>
+                                                        setTheme(isSelected ? 'dark' : 'light')
+                                                    }
+                                                />
+                                            </CardBody>
+                                        </Card>
+                                    </Tab>
+                                    <Tab
+                                        key="api-keys"
+                                        title={
+                                            <div className="flex items-center gap-2">
+                                                <Icon icon="solar:key-minimalistic-bold" width={20} />
+                                                <span>API Keys</span>
+                                            </div>
+                                        }
+                                    >
+                                        <APIKeys className="border-none shadow-none bg-transparent" />
+                                    </Tab>
+                                </Tabs>
+                            </ModalBody>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+        </>
+    )
+}
 
-export default SettingsModal;
+export default SettingsModal

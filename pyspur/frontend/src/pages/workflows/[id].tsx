@@ -22,6 +22,7 @@ const WorkflowPage: React.FC = () => {
     const router = useRouter()
     const { id } = router.query
     const [workflowData, setWorkflowData] = useState<WorkflowResponse | null>(null)
+    const [handleDownloadImage, setHandleDownloadImage] = useState<(() => void) | undefined>()
 
     useEffect(() => {
         dispatch(fetchNodeTypes())
@@ -51,9 +52,13 @@ const WorkflowPage: React.FC = () => {
     return (
         <PersistGate loading={null} persistor={persistor}>
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-                <Header activePage="workflow" />
+                <Header activePage="workflow" handleDownloadImage={handleDownloadImage} />
                 <div style={{ flexGrow: 1 }}>
-                    <FlowCanvas workflowData={workflowData as WorkflowCreateRequest} workflowID={id as string} />
+                    <FlowCanvas
+                        workflowData={workflowData as WorkflowCreateRequest}
+                        workflowID={id as string}
+                        onDownloadImageInit={(handler) => setHandleDownloadImage(() => handler)}
+                    />
                 </div>
             </div>
         </PersistGate>

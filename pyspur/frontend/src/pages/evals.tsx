@@ -15,7 +15,7 @@ import {
     TableCell,
     Chip,
     Alert,
-} from '@nextui-org/react'
+} from '@heroui/react'
 import { RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 
 interface EvalItem {

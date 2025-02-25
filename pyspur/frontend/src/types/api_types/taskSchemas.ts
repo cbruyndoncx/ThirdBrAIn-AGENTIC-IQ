@@ -1,6 +1,6 @@
 import { WorkflowDefinition } from './workflowSchemas'
 
-export type TaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+export type TaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED'
 
 export interface TaskResponse {
     id: string
@@ -10,6 +10,7 @@ export interface TaskResponse {
     status: TaskStatus
     inputs?: any
     outputs?: any
+    error?: string
     start_time?: string
     end_time?: string
     subworkflow?: WorkflowDefinition

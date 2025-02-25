@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, EdgeProps, Edge } from '@xyflow/react'
-import { Button } from '@nextui-org/react'
+import { Button } from '@heroui/react'
 import { Icon } from '@iconify/react'
 import { useDispatch } from 'react-redux'
 import { deleteEdge } from '../../store/flowSlice'
+import { useTheme } from 'next-themes'
 
 // Static styles
 const staticStyles = {
@@ -24,27 +25,11 @@ const staticStyles = {
 } as const
 
 // Add this near the other static styles
-const defaultEdgeStyle = {
-    strokeWidth: 2,
-    stroke: '#555',
-} as const
-
-interface CustomEdgeData extends Edge<any> {
-    onPopoverOpen: (params: {
-        sourceNode: {
-            id: string
-            position: { x: number; y: number }
-            data: any
-        }
-        targetNode: {
-            id: string
-            position: { x: number; y: number }
-            data: any
-        }
-        edgeId: string
-    }) => void
-    showPlusButton: boolean
-}
+const getEdgeStyle = (isDark: boolean) =>
+    ({
+        strokeWidth: 2,
+        stroke: isDark ? '#888' : '#555',
+    }) as const
 
 interface CustomEdgeProps extends EdgeProps {
     data: {
@@ -72,6 +57,8 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
     const { onPopoverOpen, showPlusButton } = data
     const reactFlowInstance = useReactFlow()
     const dispatch = useDispatch()
+    const { theme } = useTheme()
+    const isDark = theme === 'dark'
 
     // Get the full node objects
     const sourceNode = reactFlowInstance.getNode(source)
@@ -132,7 +119,7 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
     // Memoize the combined edge style
     const combinedStyle = useMemo(
         () => ({
-            ...defaultEdgeStyle,
+            ...getEdgeStyle(isDark),
             ...style,
         }),
         [JSON.stringify(style)]

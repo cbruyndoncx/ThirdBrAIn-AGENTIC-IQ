@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux'
 import { RootState } from '../store/store'
 import { nodeComparator } from '../utils/flowUtils'
-import { FlowWorkflowNode } from '../store/flowSlice'
+import { FlowWorkflowNode } from '@/types/api_types/nodeTypeSchemas'
 
 export const useNode = (id: string) => {
     return useSelector((state: RootState) => state.flow.nodes.find((n) => n.id === id), nodeComparator)

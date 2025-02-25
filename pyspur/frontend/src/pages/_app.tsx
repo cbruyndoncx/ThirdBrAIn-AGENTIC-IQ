@@ -1,19 +1,24 @@
+import { HeroUIProvider } from '@heroui/react'
+import { ThemeProvider as NextThemesProvider } from 'next-themes'
+import { AppProps } from 'next/app'
+import Head from 'next/head'
 import React from 'react'
 import { Provider } from 'react-redux'
-import { NextUIProvider } from '@nextui-org/react'
-import { AppProps } from 'next/app'
 import store from '../store/store'
 import '../styles/globals.css'
-import { ThemeProvider as NextThemesProvider } from 'next-themes'
 
 const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
     return (
         <Provider store={store}>
-            <NextUIProvider>
-                <NextThemesProvider attribute="class" defaultTheme="dark">
+            <Head>
+                <link rel="icon" type="image/png" href="/pyspur-black.png" media="(prefers-color-scheme: light)" />
+                <link rel="icon" type="image/png" href="/pyspur-white.png" media="(prefers-color-scheme: dark)" />
+            </Head>
+            <HeroUIProvider>
+                <NextThemesProvider attribute="class" defaultTheme="system">
                     <Component {...pageProps} />
                 </NextThemesProvider>
-            </NextUIProvider>
+            </HeroUIProvider>
         </Provider>
     )
 }

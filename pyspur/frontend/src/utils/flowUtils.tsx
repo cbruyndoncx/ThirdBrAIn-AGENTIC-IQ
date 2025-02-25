@@ -1,38 +1,40 @@
-import React, { useMemo, useCallback } from 'react'
-import { createNode } from './nodeFactory'
+import DynamicGroupNode from '@/components/nodes/loops/DynamicGroupNode'
+import { FlowWorkflowNodeTypesByCategory } from '@/store/nodeTypesSlice'
+import { CreateNodeResult, FlowWorkflowNode } from '@/types/api_types/nodeTypeSchemas'
 import {
-    ReactFlowInstance,
-    NodeTypes,
-    Node,
-    Edge,
-    NodeChange,
-    EdgeChange,
     Connection,
-    OnNodesChange,
-    OnEdgesChange,
+    Edge,
+    EdgeChange,
+    Node,
+    NodeChange,
+    NodeTypes,
     OnConnect,
+    OnEdgesChange,
+    OnNodesChange,
+    ReactFlowInstance,
     getConnectedEdges,
 } from '@xyflow/react'
-import { AppDispatch } from '../store/store'
-import {
-    connect,
-    deleteEdge,
-    nodesChange,
-    edgesChange,
-    addNodeWithConfig,
-    setEdges,
-    setSelectedNode,
-    deleteNode as deleteNodeAction,
-} from '../store/flowSlice'
 import isEqual from 'lodash/isEqual'
-import { FlowWorkflowNode, CreateNodeResult } from '../store/flowSlice'
+import { useTheme } from 'next-themes'
+import { useCallback, useMemo } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 import DynamicNode from '../components/nodes/DynamicNode'
 import InputNode from '../components/nodes/InputNode'
-import { RouterNode } from '../components/nodes/logic/RouterNode'
 import { CoalesceNode } from '../components/nodes/logic/CoalesceNode'
-import { v4 as uuidv4 } from 'uuid'
-import { RootState } from '../store/store'
-import { FlowWorkflowNodeType, FlowWorkflowNodeTypesByCategory } from '@/store/nodeTypesSlice'
+import { RouterNode } from '../components/nodes/logic/RouterNode'
+import { createDynamicGroupNodeWithChildren } from '../components/nodes/loops/groupNodeUtils'
+import {
+    addNodeWithConfig,
+    connect,
+    deleteEdge,
+    deleteNode as deleteNodeAction,
+    edgesChange,
+    nodesChange,
+    setEdges,
+    setSelectedNode,
+} from '../store/flowSlice'
+import { AppDispatch, RootState } from '../store/store'
+import { createNode } from './nodeFactory'
 
 interface UseNodeTypesOptions {
     nodeTypesConfig: FlowWorkflowNodeTypesByCategory | undefined
@@ -57,6 +59,8 @@ export const useNodeTypes = ({
                     types[node.name] = (props: any) => <RouterNode key={props.id} {...props} readOnly={readOnly} />
                 } else if (includeCoalesceNode && node.name === 'CoalesceNode') {
                     types[node.name] = CoalesceNode
+                } else if (node.name === 'ForLoopNode') {
+                    types[node.name] = (props: any) => <DynamicGroupNode key={props.id} {...props} />
                 } else {
                     types[node.name] = (props: any) => (
                         <DynamicNode
@@ -113,19 +117,20 @@ export const createNodeAtCenter = (
         y: center.y,
     }
 
+    // If this is a dynamic group node, handle it specially
+    if (nodeType === 'ForLoopNode') {
+        const created = createDynamicGroupNodeWithChildren(nodeTypes, nodeType, id, position, dispatch)
+        if (created) return
+    }
+
+    // Otherwise create a normal node
     const result = createNode(nodeTypes, nodeType, id, position)
     if (result) {
         dispatch(addNodeWithConfig(result))
     }
 }
 
-export const duplicateNode = (
-    nodeId: string,
-    positionAbsoluteX: number,
-    positionAbsoluteY: number,
-    dispatch: AppDispatch,
-    getState: () => RootState
-): void => {
+export const duplicateNode = (nodeId: string, dispatch: AppDispatch, getState: () => RootState): void => {
     const state = getState()
     const nodes = state.flow.nodes
     const edges = state.flow.edges
@@ -141,7 +146,7 @@ export const duplicateNode = (
         [
             {
                 id: nodeId,
-                position: { x: positionAbsoluteX, y: positionAbsoluteY },
+                position: sourceNode.position,
                 data: sourceNode.data,
             },
         ],
@@ -153,16 +158,16 @@ export const duplicateNode = (
 
     // Create the new node with an offset position
     const newNode = {
+        ...sourceNode,
         id: newNodeId,
         position: {
-            x: positionAbsoluteX + 20,
-            y: positionAbsoluteY + 20,
+            x: sourceNode.position.x + 20,
+            y: sourceNode.position.y + 20,
         },
         data: {
             ...sourceNode.data,
             title: newNodeId, // Update the title in node data
         },
-        type: sourceNode.type || 'default',
         selected: false,
     }
 
@@ -182,20 +187,91 @@ export const duplicateNode = (
         },
     }
 
-    // Duplicate the edges connected to the node
-    const newEdges = connectedEdges.map((edge) => {
-        const newEdgeId = uuidv4()
-        return {
-            ...edge,
-            id: newEdgeId,
-            source: edge.source === nodeId ? newNodeId : edge.source,
-            target: edge.target === nodeId ? newNodeId : edge.target,
-        }
-    })
+    // Check if this node has any children
+    const childNodes = nodes.filter((node) => node.parentId === nodeId)
 
-    // Dispatch actions to add the new node and edges
-    dispatch(addNodeWithConfig(nodeConfig))
-    dispatch(setEdges({ edges: [...edges, ...newEdges] }))
+    if (childNodes.length > 0) {
+        // Find all edges between children
+        const childEdges = edges.filter((edge) =>
+            childNodes.some((child) => child.id === edge.source || child.id === edge.target)
+        )
+
+        // Create new nodes and edges for each child
+        const newChildNodes: FlowWorkflowNode[] = []
+        const newChildEdges: Edge[] = []
+        const idMapping: Record<string, string> = { [nodeId]: newNodeId }
+
+        // Add the parent node first
+        dispatch(addNodeWithConfig(nodeConfig))
+
+        // Duplicate each child node
+        childNodes.forEach((childNode) => {
+            const newChildId = generateNewNodeId(nodes, childNode.type || 'default')
+            idMapping[childNode.id] = newChildId
+
+            const newChildNode = {
+                ...childNode,
+                id: newChildId,
+                parentId: newNodeId,
+                data: {
+                    ...childNode.data,
+                    title: newChildId,
+                },
+                selected: false,
+            }
+            newChildNodes.push(newChildNode)
+
+            // Add config for the new child node
+            const childConfig = state.flow.nodeConfigs[childNode.id]
+            if (childConfig) {
+                dispatch(
+                    addNodeWithConfig({
+                        node: newChildNode,
+                        config: {
+                            ...childConfig,
+                            title: newChildId,
+                        },
+                    })
+                )
+            }
+        })
+
+        // Duplicate internal edges between children
+        childEdges.forEach((edge) => {
+            const newEdgeId = uuidv4()
+            const newSourceId = idMapping[edge.source]
+            const newTargetId = idMapping[edge.target]
+
+            if (newSourceId && newTargetId) {
+                newChildEdges.push({
+                    ...edge,
+                    id: newEdgeId,
+                    source: newSourceId,
+                    target: newTargetId,
+                    sourceHandle: edge.sourceHandle,
+                    targetHandle: edge.targetHandle,
+                })
+            }
+        })
+
+        // Add all the new edges
+        dispatch(setEdges({ edges: [...edges, ...newChildEdges] }))
+    } else {
+        // For nodes without children, just duplicate the node and its edges
+        const newEdges = connectedEdges.map((edge) => {
+            const newEdgeId = uuidv4()
+            return {
+                ...edge,
+                id: newEdgeId,
+                source: edge.source === nodeId ? newNodeId : edge.source,
+                target: edge.target === nodeId ? newNodeId : edge.target,
+            }
+        })
+
+        // Dispatch actions to add the new node and edges
+        dispatch(addNodeWithConfig(nodeConfig))
+        dispatch(setEdges({ edges: [...edges, ...newEdges] }))
+    }
 }
 
 export const insertNodeBetweenNodes = (
@@ -271,6 +347,7 @@ interface StyledEdgesOptions {
     edges: Edge[]
     hoveredNode: string | null
     hoveredEdge: string | null
+    selectedEdgeId: string | null
     handlePopoverOpen?: (params: { sourceNode: Node; targetNode: Node; edgeId: string }) => void
     readOnly?: boolean
 }
@@ -279,41 +356,61 @@ export const useStyledEdges = ({
     edges,
     hoveredNode,
     hoveredEdge,
+    selectedEdgeId,
     handlePopoverOpen,
     readOnly = false,
 }: StyledEdgesOptions) => {
+    const { theme } = useTheme()
+    const isDark = theme === 'dark'
+
     return useMemo(() => {
         return edges.map((edge) => ({
             ...edge,
             type: 'custom',
             style: {
                 stroke: readOnly
-                    ? edge.id === hoveredEdge
-                        ? 'black'
+                    ? edge.id === hoveredEdge || edge.id === selectedEdgeId
+                        ? isDark
+                            ? '#fff'
+                            : '#000'
                         : edge.source === hoveredNode || edge.target === hoveredNode
-                          ? 'black'
+                          ? isDark
+                              ? '#fff'
+                              : '#000'
+                          : isDark
+                            ? '#888'
+                            : '#555'
+                    : hoveredEdge === edge.id ||
+                        edge.id === selectedEdgeId ||
+                        hoveredNode === edge.source ||
+                        hoveredNode === edge.target
+                      ? isDark
+                          ? '#fff'
                           : '#555'
-                    : hoveredEdge === edge.id || hoveredNode === edge.source || hoveredNode === edge.target
-                      ? '#555'
-                      : '#999',
+                      : isDark
+                        ? '#666'
+                        : '#999',
                 strokeWidth: readOnly
-                    ? edge.id === hoveredEdge
+                    ? edge.id === hoveredEdge || edge.id === selectedEdgeId
                         ? 4
                         : edge.source === hoveredNode || edge.target === hoveredNode
                           ? 4
                           : 2
-                    : hoveredEdge === edge.id || hoveredNode === edge.source || hoveredNode === edge.target
+                    : hoveredEdge === edge.id ||
+                        edge.id === selectedEdgeId ||
+                        hoveredNode === edge.source ||
+                        hoveredNode === edge.target
                       ? 3
                       : 1.5,
             },
             data: {
                 ...edge.data,
-                showPlusButton: edge.id === hoveredEdge,
+                showPlusButton: edge.id === hoveredEdge || edge.id === selectedEdgeId,
                 onPopoverOpen: handlePopoverOpen,
             },
             key: edge.id,
         }))
-    }, [edges, hoveredNode, hoveredEdge, handlePopoverOpen, readOnly])
+    }, [edges, hoveredNode, hoveredEdge, selectedEdgeId, handlePopoverOpen, readOnly, isDark])
 }
 
 interface NodesWithModeOptions {
@@ -334,6 +431,29 @@ export const useNodesWithMode = ({ nodes, mode }: NodesWithModeOptions) => {
     }, [nodes, mode])
 }
 
+interface useAdjustGroupNodesZIndexOptions {
+    nodes: Node[]
+}
+
+export const useAdjustGroupNodesZIndex = ({ nodes }: useAdjustGroupNodesZIndexOptions) => {
+    return useMemo(() => {
+        let groupNodeZIndex = -1
+        const updatedNodes = nodes.map((node) => {
+            if (node.type === 'ForLoopNode') {
+                return {
+                    ...node,
+                    style: {
+                        ...node.style,
+                        zIndex: groupNodeZIndex,
+                    },
+                }
+            }
+            return node
+        })
+        return updatedNodes
+    }, [nodes])
+}
+
 interface FlowEventHandlersOptions {
     dispatch: AppDispatch
     nodes: Node[]
@@ -341,17 +461,39 @@ interface FlowEventHandlersOptions {
 }
 
 export const useFlowEventHandlers = ({ dispatch, nodes, setHelperLines }: FlowEventHandlersOptions) => {
+    // Create throttled position handler
+    const throttledPosition = useMemo(() => createThrottledPositionChange(), [])
+
     const onNodesChange: OnNodesChange = useCallback(
         (changes: NodeChange[]) => {
+            // Clear helper lines if not a position change
             if (!changes.some((c) => c.type === 'position')) {
                 setHelperLines?.({ horizontal: null, vertical: null })
                 dispatch(nodesChange({ changes }))
                 return
             }
-            dispatch(nodesChange({ changes }))
+
+            // Handle position changes with throttling
+            const positionChanges = changes.filter(c => c.type === 'position')
+            const otherChanges = changes.filter(c => c.type !== 'position')
+
+            // Immediately dispatch non-position changes
+            if (otherChanges.length > 0) {
+                dispatch(nodesChange({ changes: otherChanges }))
+            }
+
+            // Throttle position changes
+            if (positionChanges.length > 0) {
+                throttledPosition.handlePositionChange(positionChanges, dispatch)
+            }
         },
-        [dispatch, nodes, setHelperLines]
+        [dispatch, nodes, setHelperLines, throttledPosition]
     )
+
+    // Handle drag end to flush any pending position changes
+    const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+        throttledPosition.flushChanges(dispatch)
+    }, [dispatch, throttledPosition])
 
     const onEdgesChange: OnEdgesChange = useCallback(
         (changes: EdgeChange[]) => dispatch(edgesChange({ changes })),
@@ -401,6 +543,7 @@ export const useFlowEventHandlers = ({ dispatch, nodes, setHelperLines }: FlowEv
         onNodesChange,
         onEdgesChange,
         onConnect,
+        onNodeDragStop
     }
 }
 
@@ -408,5 +551,94 @@ export const deleteNode = (nodeId: string, selectedNodeId: string | null, dispat
     dispatch(deleteNodeAction({ nodeId }))
     if (selectedNodeId === nodeId) {
         dispatch(setSelectedNode({ nodeId: null }))
+    }
+}
+
+export const getPredecessorFields = (nodeId: string, nodes: FlowWorkflowNode[], edges: Edge[]): string[] => {
+    // Find all incoming edges to this node
+    const incomingEdges = edges.filter((edge) => edge.target === nodeId)
+
+    // Get all predecessor nodes
+    const predecessorNodes = incomingEdges
+        .map((edge) => nodes.find((node) => node.id === edge.source))
+        .filter((node): node is FlowWorkflowNode => node !== undefined)
+
+    // Generate field options using dot notation
+    const fields: string[] = []
+    predecessorNodes.forEach((node) => {
+        const nodeTitle = getNodeTitle(node.data)
+        // Get output schema from node's data or config
+        const outputSchema = node.data?.config?.output_schema || node.data?.output_schema || []
+
+        // Add each field with dot notation
+        outputSchema.forEach((field: { name: string }) => {
+            fields.push(`${nodeTitle}.${field.name}`)
+        })
+    })
+
+    return fields.sort()
+}
+
+// Add throttled position update utilities
+export const createThrottledPositionChange = () => {
+    let lastUpdate = 0
+    const throttleInterval = 16 // Reduced to 16ms (roughly 60fps) for more responsive updates
+    let pendingChanges: NodeChange[] = []
+    let animationFrame: number | null = null
+
+    return {
+        handlePositionChange: (changes: NodeChange[], dispatch: AppDispatch) => {
+            const now = Date.now()
+
+            // Always collect changes
+            pendingChanges = [...pendingChanges, ...changes]
+
+            // If animation frame is already scheduled, don't schedule another one
+            if (animationFrame !== null) {
+                return
+            }
+
+            // If enough time has passed, schedule update on next animation frame
+            if (now - lastUpdate >= throttleInterval) {
+                animationFrame = requestAnimationFrame(() => {
+                    // Only take the latest position for each node
+                    const latestPositions = new Map<string, NodeChange>()
+                    pendingChanges.forEach(change => {
+                        if (change.type === 'position' && change.id) {
+                            latestPositions.set(change.id, change)
+                        }
+                    })
+
+                    const optimizedChanges = [...latestPositions.values()]
+                    dispatch(nodesChange({ changes: optimizedChanges }))
+                    pendingChanges = []
+                    lastUpdate = now
+                    animationFrame = null
+                })
+            }
+        },
+
+        flushChanges: (dispatch: AppDispatch) => {
+            // Cancel any pending animation frame
+            if (animationFrame !== null) {
+                cancelAnimationFrame(animationFrame)
+                animationFrame = null
+            }
+
+            if (pendingChanges.length > 0) {
+                // Optimize final update
+                const latestPositions = new Map<string, NodeChange>()
+                pendingChanges.forEach(change => {
+                    if (change.type === 'position' && change.id) {
+                        latestPositions.set(change.id, change)
+                    }
+                })
+
+                const optimizedChanges = [...latestPositions.values()]
+                dispatch(nodesChange({ changes: optimizedChanges }))
+                pendingChanges = []
+                lastUpdate = Date.now()
+            }
+        }
     }
 }

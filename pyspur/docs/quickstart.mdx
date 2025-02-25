@@ -1,86 +1,140 @@
 ---
 title: 'Quickstart'
-description: 'Start building awesome documentation in under 5 minutes'
+description: 'Install PySpur in under 2 minutes'
 ---
 
-## Setup your development
+## Setup Options
 
-Learn how to update your docs locally and deploy them to the public.
+Choose the installation method that best suits your needs:
 
-### Edit and preview
+### Option A: Using `pyspur` Python Package
+
+This is the quickest way to get started. Python 3.12 or higher is required.
 
 <AccordionGroup>
-  <Accordion icon="github" title="Clone your docs locally">
-    During the onboarding process, we created a repository on your Github with
-    your docs content. You can find this repository on our
-    [dashboard](https://dashboard.mintlify.com). To clone the repository
-    locally, follow these
-    [instructions](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
-    in your terminal.
+  <Accordion icon="python" title="1. Install PySpur">
+    ```sh
+    pip install pyspur
+    ```
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Preview changes">
-    Previewing helps you make sure your changes look as intended. We built a
-    command line interface to render these changes locally. 1. Install the
-    [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the
-    documentation changes locally with this command: ``` npm i -g mintlify ```
-    2. Run the following command at the root of your documentation (where
-    `mint.json` is): ``` mintlify dev ```
+  <Accordion icon="folder" title="2. Initialize a new project">
+    ```sh
+    pyspur init my-project
+    cd my-project
+    ```
+    This will create a new directory with a `.env` file.
+  </Accordion>
+  <Accordion icon="play" title="3. Start the server">
+    ```sh
+    pyspur serve --sqlite
+    ```
+    By default, this will start PySpur app at `http://localhost:6080` using a sqlite database.
+    We recommend you configure a postgres instance URL in the `.env` file to get a more stable experience.
+  </Accordion>
+  <Accordion icon="gear" title="4. Customize Your Deployment">
+    You can customize your PySpur deployment in two ways:
+
+    a. **Through the app** (Recommended):
+       - Navigate to the API Keys tab in the app
+       - Add your API keys for various providers (OpenAI, Anthropic, etc.)
+       - Changes take effect immediately
+
+    b. **Manual Configuration**:
+       - Edit the `.env` file in your project directory
+       - It is recommended to configure a postgres database in .env for more reliability
+       - Restart the app with `pyspur serve`. Add `--sqlite` if you are not using postgres
   </Accordion>
 </AccordionGroup>
 
-### Deploy your changes
+### Option B: Using Docker (Recommended for Scalable, In-Production Systems)
+
+This is the recommended way for production deployments:
 
 <AccordionGroup>
+  <Accordion icon="docker" title="1. Install Docker">
+    First, install Docker by following the official installation guide for your operating system:
+    - [Docker for Linux](https://docs.docker.com/engine/install/)
+    - [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+  </Accordion>
+  <Accordion icon="terminal" title="2. Create a PySpur Project">
+    Once Docker is installed, create a new PySpur project with:
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/PySpur-com/pyspur/main/start_pyspur_docker.sh | bash -s pyspur-project
+    ```
+    This will:
+    - Start a new PySpur project in a new directory called `pyspur-project`
+    - Set up the necessary configuration files
+    - Start PySpur app automatically backed by a local postgres docker instance
+  </Accordion>
+  <Accordion icon="browser" title="3. Access PySpur">
+    Go to `http://localhost:6080` in your browser.
+  </Accordion>
+  <Accordion icon="gear" title="4. Customize Your Deployment">
+    You can customize your PySpur deployment in two ways:
 
-<Accordion icon="message-bot" title="Install our Github app">
-  Our Github app automatically deploys your changes to your docs site, so you
-  don't need to manage deployments yourself. You can find the link to install on
-  your [dashboard](https://dashboard.mintlify.com). Once the bot has been
-  successfully installed, there should be a check mark next to the commit hash
-  of the repo.
-</Accordion>
-<Accordion icon="rocket" title="Push your changes">
-  [Commit and push your changes to
-  Git](https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository#about-git-push)
-  for your changes to update in your docs site. If you push and don't see that
-  the Github app successfully deployed your changes, you can also manually
-  update your docs through our [dashboard](https://dashboard.mintlify.com).
-</Accordion>
+    a. **Through the app** (Recommended):
+       - Navigate to the API Keys tab in the app
+       - Add your API keys for various providers (OpenAI, Anthropic, etc.)
+       - Changes take effect immediately
 
+    b. **Manual Configuration**:
+       - Edit the `.env` file in your project directory
+       - Restart the services with:
+         ```sh
+         docker compose up -d
+         ```
+  </Accordion>
 </AccordionGroup>
 
-## Update your docs
+### Using Local Models with Ollama
 
-Add content directly in your files with MDX syntax and React components. You can use any of our components, or even build your own.
+<AccordionGroup>
+<Accordion icon="server" title="Configure Ollama">
+  1. Start Ollama service with:
+  ```sh
+  OLLAMA_HOST="0.0.0.0" ollama serve
+  ```
+  2. Update your `.env` file with:
+  ```sh
+  OLLAMA_BASE_URL=http://host.docker.internal:11434
+  ```
+  3. Download models using: `ollama pull <model-name>`
+  4. Select Ollama models from the sidebar for LLM nodes
+
+  Note: PySpur only works with models that support structured-output and json mode. Most newer models should be good, but please confirm this from Ollama documentation for the model you wish to use.
+</Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+After installation, you can:
+
+- 🪄 **Create New Workflow**
+  Click "New Spur" to create a workflow from scratch
+- 📋 **Use Templates**
+  Start with one of our pre-built templates
+- 💾 **Import Spur JSONs**
+  Import spurs shared by other users
+- 🌐 **Deploy as API**
+  Single click using the "Deploy" button in the top bar
+
+
+## Need Help?
 
 <CardGroup>
-
-<Card title="Style Your Docs" icon="paintbrush" href="/settings/global">
-  Add flair to your docs with personalized branding.
+<Card
+  title="Join Our Discord"
+  icon="discord"
+  href="https://discord.gg/7Spn7C8A5F"
+>
+  Connect with the community and get help
 </Card>
 
 <Card
-  title="Add API Endpoints"
-  icon="square-code"
-  href="/api-playground/configuration"
+  title="Talk to Creators"
+  icon="calendar"
+  href="https://calendly.com/d/cnf9-57m-bv3/pyspur-founders"
 >
-  Implement your OpenAPI spec and enable API user interaction.
+  Schedule a call with the PySpur team
 </Card>
-
-<Card
-  title="Integrate Analytics"
-  icon="chart-mixed"
-  href="/analytics/supported-integrations"
->
-  Draw insights from user interactions with your documentation.
-</Card>
-
-<Card
-  title="Host on a Custom Domain"
-  icon="browser"
-  href="/settings/custom-domain/subdomain"
->
-  Keep your docs on your own website's subdomain.
-</Card>
-
 </CardGroup>

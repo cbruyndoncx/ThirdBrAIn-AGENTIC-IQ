@@ -1,18 +1,20 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { FlowWorkflowNode } from '@/types/api_types/nodeTypeSchemas'
+import { convertToPythonVariableName } from '@/utils/variableNameUtils'
+import { Alert, Button, Input } from '@heroui/react'
+import { Icon } from '@iconify/react'
 import { Handle, Position } from '@xyflow/react'
+import { isEqual } from 'lodash'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import BaseNode from './BaseNode'
 import {
-    setWorkflowInputVariable,
     deleteWorkflowInputVariable,
+    setWorkflowInputVariable,
     updateWorkflowInputVariableKey,
 } from '../../store/flowSlice'
-import { Input, Button, Alert } from '@nextui-org/react'
-import { Icon } from '@iconify/react'
-import styles from './InputNode.module.css'
 import { RootState } from '../../store/store'
-import { isEqual } from 'lodash'
-import { FlowWorkflowNode } from '../../store/flowSlice'
+import BaseNode from './BaseNode'
+import styles from './InputNode.module.css'
+import NodeOutputDisplay from './NodeOutputDisplay'
 
 interface InputNodeProps {
     id: string
@@ -33,6 +35,7 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
         isEqual
     )
     const nodeConfig = useSelector((state: RootState) => state.flow.nodeConfigs[id])
+    const isFixedOutput = nodeConfig?.has_fixed_output || false
 
     const outputSchema = nodeConfig?.output_schema || {}
     const outputSchemaKeys = Object.keys(outputSchema)
@@ -54,23 +57,11 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
         }
     }, [nodeConfig, outputSchemaKeys])
 
-    const convertToPythonVariableName = (str: string): string => {
-        // Replace spaces and hyphens with underscores
-        str = str.replace(/[\s-]/g, '_')
-        // Remove any non-alphanumeric characters except underscores
-        str = str.replace(/[^a-zA-Z0-9_]/g, '')
-        // Ensure the first character is a letter or underscore
-        if (!/^[a-zA-Z_]/.test(str)) {
-            str = '_' + str
-        }
-        return str
-    }
-
     const handleAddWorkflowInputVariable = useCallback(() => {
-        if (!newFieldValue.trim()) return
-        const newKey = convertToPythonVariableName(newFieldValue.trim())
+        if (!newFieldValue.trim() || isFixedOutput) return
+        const newKey = convertToPythonVariableName(newFieldValue)
 
-        if (newKey !== newFieldValue.trim()) {
+        if (newKey !== newFieldValue) {
             setShowKeyError(true)
             setTimeout(() => setShowKeyError(false), 3000)
         }
@@ -78,22 +69,24 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
         dispatch(
             setWorkflowInputVariable({
                 key: newKey,
-                value: 'str',
+                value: 'string',
             })
         )
         setNewFieldValue('')
-    }, [dispatch, newFieldValue])
+    }, [dispatch, newFieldValue, isFixedOutput])
 
     const handleDeleteWorkflowInputVariable = useCallback(
         (keyToDelete: string) => {
-            dispatch(deleteWorkflowInputVariable({ key: keyToDelete }))
+            if (!isFixedOutput) {
+                dispatch(deleteWorkflowInputVariable({ key: keyToDelete }))
+            }
         },
-        [dispatch]
+        [dispatch, isFixedOutput]
     )
 
     const handleWorkflowInputVariableKeyEdit = useCallback(
         (oldKey: string, newKey: string) => {
-            if (oldKey === newKey || !newKey.trim()) {
+            if (isFixedOutput || oldKey === newKey || !newKey.trim()) {
                 setEditingField(null)
                 return
             }
@@ -107,7 +100,7 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
             dispatch(updateWorkflowInputVariableKey({ oldKey, newKey: validKey }))
             setEditingField(null)
         },
-        [dispatch]
+        [dispatch, isFixedOutput]
     )
 
     const InputHandleRow: React.FC<{ keyName: string }> = ({ keyName }) => {
@@ -139,11 +132,11 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                                 autoFocus
                                 defaultValue={keyName}
                                 size="sm"
-                                variant="faded"
+                                variant="flat"
                                 radius="lg"
                                 classNames={{
-                                    input: 'bg-default-100',
-                                    inputWrapper: 'shadow-none',
+                                    input: 'text-default-900',
+                                    inputWrapper: 'shadow-none bg-default-100',
                                 }}
                             />
                         ) : (
@@ -178,12 +171,12 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                                         <td className={styles.handleLabelCell}>
                                             {!isCollapsed && (
                                                 <div className="flex items-center gap-2">
-                                                    {editingField === key && !readOnly ? (
+                                                    {editingField === key && !readOnly && !isFixedOutput ? (
                                                         <Input
                                                             autoFocus
                                                             defaultValue={key}
                                                             size="sm"
-                                                            variant="faded"
+                                                            variant="flat"
                                                             radius="lg"
                                                             onBlur={(e) => {
                                                                 const target = e.target as HTMLInputElement
@@ -212,20 +205,24 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                                                                 }
                                                             }}
                                                             classNames={{
-                                                                input: 'bg-default-100',
-                                                                inputWrapper: 'shadow-none',
+                                                                input: 'text-default-900',
+                                                                inputWrapper: 'shadow-none bg-default-100',
                                                             }}
                                                         />
                                                     ) : (
                                                         <div className="flex flex-col w-full gap-1">
                                                             <div className="flex items-center justify-between">
                                                                 <span
-                                                                    className={`${styles.handleLabel} text-sm font-medium ${!readOnly ? 'cursor-pointer hover:text-primary' : ''}`}
-                                                                    onClick={() => !readOnly && setEditingField(key)}
+                                                                    className={`${styles.handleLabel} text-sm font-medium ${!readOnly && !isFixedOutput ? 'cursor-pointer hover:text-primary' : ''}`}
+                                                                    onClick={() =>
+                                                                        !readOnly &&
+                                                                        !isFixedOutput &&
+                                                                        setEditingField(key)
+                                                                    }
                                                                 >
                                                                     {key}
                                                                 </span>
-                                                                {!readOnly && (
+                                                                {!readOnly && !isFixedOutput && (
                                                                     <Button
                                                                         isIconOnly
                                                                         size="sm"
@@ -256,7 +253,7 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                     <Handle
                         type="source"
                         position={Position.Right}
-                        id={nodeConfig?.title || id}
+                        id={String(id)}
                         className={`${styles.handle} ${styles.handleRight} ${
                             isCollapsed ? styles.collapsedHandleOutput : ''
                         }`}
@@ -269,7 +266,8 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
 
     const renderAddField = () =>
         !isCollapsed &&
-        !readOnly && (
+        !readOnly &&
+        !isFixedOutput && (
             <div className="flex items-center gap-2 px-4 py-2">
                 <Input
                     placeholder="Enter new field name"
@@ -283,7 +281,7 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                         setNewFieldValue(validValue)
                     }}
                     size="sm"
-                    variant="faded"
+                    variant="bordered"
                     radius="lg"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -291,8 +289,8 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                         }
                     }}
                     classNames={{
-                        input: 'bg-background',
-                        inputWrapper: 'shadow-none bg-background',
+                        input: 'text-default-900 dark:text-default-100 placeholder:text-default-500',
+                        inputWrapper: 'shadow-none bg-transparent border-default-200 dark:border-default-700 group-data-[hover=true]:border-default-200 dark:group-data-[hover=true]:border-default-600',
                     }}
                     endContent={
                         <Button
@@ -312,6 +310,8 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
     const baseNodeStyles = useMemo(
         () => ({
             width: nodeWidth,
+            maxHeight: '800px',
+            overflow: 'auto',
         }),
         [nodeWidth]
     )
@@ -321,7 +321,7 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
             {showKeyError && (
                 <Alert
                     className="absolute -top-16 left-0 right-0 z-50"
-                    color="danger"
+                    color="warning"
                     onClose={() => setShowKeyError(false)}
                 >
                     Variable names cannot contain whitespace. Using underscores instead.
@@ -337,9 +337,13 @@ const InputNode: React.FC<InputNodeProps> = ({ id, data, readOnly = false, ...pr
                 className="hover:!bg-background"
                 {...props}
             >
-                <div className={styles.nodeWrapper} ref={nodeRef}>
-                    {renderWorkflowInputs()}
-                    {renderAddField()}
+                <div className="flex flex-col gap-2">
+                    {' '}
+                    {/* Add flex container with gap */}
+                    <div className={styles.nodeWrapper} ref={nodeRef}>
+                        {renderWorkflowInputs()}
+                        {renderAddField()}
+                    </div>
                 </div>
             </BaseNode>
         </div>

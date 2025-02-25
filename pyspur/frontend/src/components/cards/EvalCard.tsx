@@ -16,7 +16,7 @@ import {
     DropdownSection,
     DropdownItem,
     Slider,
-} from '@nextui-org/react'
+} from '@heroui/react'
 import { Icon } from '@iconify/react'
 import { getWorkflows, getWorkflowOutputVariables, startEvalRun } from '../../utils/api'
 interface EvalCardProps {

@@ -59,6 +59,48 @@ You can monitor the application logs using these commands:
 
 All log commands show the last 5 minutes of logs and continue to tail new entries.
 
+### Modifying the database schemas
+
+
+1. **Stop Containers**
+   ```bash
+   docker compose down
+   ```
+
+2. **Generate a Migration**
+   ```bash
+   ./generate_migrations.sh 002 <short_description_in_snake_case>
+   ```
+   - Migration file appears in `./backend/app/models/management/alembic/versions/` with prefix `002_...`.
+
+3. **Review the Generated Script**
+   - Open the file to ensure it has the intended changes.
+
+4. **Apply the Migration**
+   ```bash
+   docker compose down
+   docker compose up --build
+   ```
+   - Alembic applies the new migration automatically on startup.
+
+5. **Test the App**
+   - Confirm new tables/columns work as expected.
+
+6. **Commit & Push**
+   ```bash
+   git add .
+   git commit -m "Add migration 002 <description>"
+   git push origin <branch>
+   ```
+
+
+### Docker commands
+
+```bash
+docker compose down
+docker compose up --build
+```
+
 ## Customization
 
 You can customize the development environment by:

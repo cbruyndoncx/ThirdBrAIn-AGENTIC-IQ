@@ -1,14 +1,28 @@
 import axios from 'axios'
-import testInput from '../constants/test_input.js' // Import the test input directly
 import JSPydanticModel from './JSPydanticModel' // Import the JSPydanticModel class
 import { WorkflowCreateRequest, WorkflowDefinition, WorkflowResponse } from '@/types/api_types/workflowSchemas'
 import { DatasetResponse, DatasetListResponse } from '@/types/api_types/datasetSchemas'
 import { EvalRunRequest, EvalRunResponse } from '@/types/api_types/evalSchemas'
 import { NodeTypeSchema, MinimumNodeConfigSchema } from '@/types/api_types/nodeTypeSchemas'
-import { OutputFileResponse, OutputFileCreate, OutputFileUpdate } from '@/types/api_types/outputFileSchemas'
+import { OutputFileResponse } from '@/types/api_types/outputFileSchemas'
 import { RunResponse } from '@/types/api_types/runSchemas'
+import {
+    DocumentChunkSchema,
+    DocumentWithChunksSchema,
+    ChunkPreviewSchema,
+    ChunkPreviewResponseSchema,
+    ChunkTemplateSchema,
+    DocumentCollectionCreateRequestSchema,
+    DocumentCollectionResponseSchema,
+    VectorIndexCreateRequestSchema,
+    VectorIndexResponseSchema,
+    ProcessingProgressSchema
+} from '@/types/api_types/ragSchemas'
 
-const API_BASE_URL = typeof window !== 'undefined' ? `http://${window.location.host}/api` : 'http://localhost:6080/api'
+const API_BASE_URL =
+    typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.host}/api`
+        : 'http://localhost:6080/api'
 
 export interface ApiKey {
     name: string
@@ -21,13 +35,11 @@ export const getNodeTypes = async (): Promise<{
 }> => {
     try {
         const response = await axios.get(`${API_BASE_URL}/node/supported_types/`)
-        const model = new JSPydanticModel(response.data)
 
-        // Get both the processed schema and metadata
+        const model = new JSPydanticModel(response.data)
         const schema = model.createObjectFromSchema()
         const metadata = model.getAllMetadata()
 
-        // Return both schema and metadata
         return {
             schema,
             metadata,
@@ -81,9 +93,14 @@ export const getRun = async (runID) => {
     }
 }
 
-export const getWorkflows = async (): Promise<WorkflowResponse[]> => {
+export const getWorkflows = async (page: number = 1, pageSize: number = 10): Promise<WorkflowResponse[]> => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/wf/`)
+        const response = await axios.get(`${API_BASE_URL}/wf/`, {
+            params: {
+                page,
+                page_size: pageSize,
+            },
+        })
         return response.data
     } catch (error) {
         console.error('Error getting workflows:', error)
@@ -174,9 +191,18 @@ export const getWorkflow = async (workflowID: string): Promise<WorkflowResponse>
     }
 }
 
-export const getWorkflowRuns = async (workflowID: string): Promise<RunResponse[]> => {
+export const getWorkflowRuns = async (
+    workflowID: string,
+    page: number = 1,
+    pageSize: number = 10
+): Promise<RunResponse[]> => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/wf/${workflowID}/runs/`)
+        const response = await axios.get(`${API_BASE_URL}/wf/${workflowID}/runs/`, {
+            params: {
+                page,
+                page_size: pageSize,
+            },
+        })
         return response.data
     } catch (error) {
         console.error('Error fetching workflow runs:', error)
@@ -209,13 +235,15 @@ export const downloadOutputFile = async (outputFileID: string): Promise<void> =>
 }
 
 export const getAllRuns = async (
-    lastK: number = 10,
+    page: number = 1,
+    pageSize: number = 10,
     parentOnly: boolean = true,
     runType: string = 'batch'
 ): Promise<any> => {
     try {
         const params = {
-            last_k: lastK,
+            page,
+            page_size: pageSize,
             parent_only: parentOnly,
             run_type: runType,
         }
@@ -454,4 +482,516 @@ export const getWorkflowOutputVariables = async (workflowId: string): Promise<an
     }
 }
 
-// Continue adding types for other functions similarly...
+export interface StoreGoogleAccessTokenResponse {
+    message: string
+}
+
+export const storeGoogleAccessToken = async (accessToken: string, expiresIn: string): Promise<any> => {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/google/store_token/`, {
+            access_token: accessToken,
+            expires_in: expiresIn,
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error storing token:', error)
+        throw error
+    }
+}
+
+export interface GoogleAccessTokenValidationResponse {
+    is_valid: boolean
+}
+
+export const validateGoogleAccessToken = async (): Promise<GoogleAccessTokenValidationResponse> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/google/validate_token/`)
+        return response.data
+    } catch (error) {
+        console.error('Error checking token:', error)
+        throw error
+    }
+}
+
+// RAG Management Types
+export interface KnowledgeBaseCreationJob {
+    id: string
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    progress: number
+    current_step: string
+    total_files: number
+    processed_files: number
+    total_chunks: number
+    processed_chunks: number
+    error_message?: string
+    created_at: string
+    updated_at: string
+}
+
+export interface KnowledgeBaseCreateRequest {
+    name: string
+    description?: string
+    data_source: {
+        type: 'upload' | 'sync'
+        tool?: string
+        files?: File[]
+    }
+    text_processing: {
+        chunk_size: number
+        overlap: number
+    }
+    embedding: {
+        model: string
+        vector_db: string
+        search_strategy: string
+        semantic_weight?: number
+        keyword_weight?: number
+        top_k?: number
+        score_threshold?: number
+    }
+}
+
+export interface KnowledgeBaseResponse {
+    id: string
+    name: string
+    description: string
+    status: 'processing' | 'ready' | 'failed'
+    created_at: string
+    updated_at: string
+    document_count: number
+    chunk_count: number
+    error_message?: string
+    has_embeddings: boolean
+    config?: {
+        vector_db?: string
+        embedding_model?: string
+        chunk_token_size?: number
+        embeddings_batch_size?: number
+    }
+}
+
+// Embedding Model Types
+export interface EmbeddingModelConfig {
+    id: string
+    provider: string
+    name: string
+    dimensions: number
+    max_input_length: number
+    supported_encoding_formats?: string[]
+    required_env_vars: string[]
+}
+
+// Vector Store Types
+export interface VectorStoreConfig {
+    id: string
+    name: string
+    description: string
+    requires_api_key: boolean
+    api_key_env_var?: string
+    required_env_vars: string[]
+}
+
+// RAG Management Functions
+export const createKnowledgeBase = async (data: KnowledgeBaseCreateRequest): Promise<KnowledgeBaseResponse> => {
+    try {
+        const formData = new FormData()
+
+        // Add metadata
+        formData.append(
+            'metadata',
+            JSON.stringify({
+                name: data.name,
+                description: data.description,
+                text_processing: data.text_processing,
+                embedding: data.embedding,
+            })
+        )
+
+        // Add files if present
+        if (data.data_source?.type === 'upload' && data.data_source.files) {
+            data.data_source.files.forEach((file) => {
+                formData.append('files', file)
+            })
+        }
+
+        // Add sync tool info if present
+        if (data.data_source?.type === 'sync' && data.data_source.tool) {
+            formData.append('sync_tool', data.data_source.tool)
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/rag/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error creating knowledge base:', error)
+        throw error
+    }
+}
+
+export const listKnowledgeBases = async (): Promise<KnowledgeBaseResponse[]> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/`)
+        return response.data
+    } catch (error) {
+        console.error('Error listing knowledge bases:', error)
+        throw error
+    }
+}
+
+export const getKnowledgeBase = async (id: string): Promise<KnowledgeBaseResponse> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/${id}/`)
+        return response.data
+    } catch (error) {
+        console.error('Error getting knowledge base:', error)
+        throw error
+    }
+}
+
+export const deleteKnowledgeBase = async (id: string): Promise<void> => {
+    try {
+        await axios.delete(`${API_BASE_URL}/rag/${id}/`)
+    } catch (error) {
+        console.error('Error deleting knowledge base:', error)
+        throw error
+    }
+}
+
+export const updateKnowledgeBase = async (
+    id: string,
+    data: Partial<KnowledgeBaseCreateRequest>
+): Promise<KnowledgeBaseResponse> => {
+    try {
+        const response = await axios.put(`${API_BASE_URL}/rag/${id}/`, data)
+        return response.data
+    } catch (error) {
+        console.error('Error updating knowledge base:', error)
+        throw error
+    }
+}
+
+export const syncKnowledgeBase = async (id: string): Promise<void> => {
+    try {
+        await axios.post(`${API_BASE_URL}/rag/${id}/sync/`)
+    } catch (error) {
+        console.error('Error syncing knowledge base:', error)
+        throw error
+    }
+}
+
+export const getEmbeddingModels = async (): Promise<Record<string, EmbeddingModelConfig>> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/env-mgmt/embedding-models/`)
+        return response.data
+    } catch (error) {
+        console.error('Error fetching embedding models:', error)
+        throw error
+    }
+}
+
+export const getVectorStores = async (): Promise<Record<string, VectorStoreConfig>> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/env-mgmt/vector-stores/`)
+        return response.data
+    } catch (error) {
+        console.error('Error fetching vector stores:', error)
+        throw error
+    }
+}
+
+export const getKnowledgeBaseJobStatus = async (id: string): Promise<KnowledgeBaseCreationJob> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/${id}/job/`)
+        return response.data
+    } catch (error) {
+        console.error('Error getting knowledge base job status:', error)
+        throw error
+    }
+}
+
+export const addDocumentsToKnowledgeBase = async (id: string, files: File[]): Promise<any> => {
+    try {
+        const formData = new FormData()
+        files.forEach((file) => {
+            formData.append('files', file)
+        })
+
+        const response = await axios.post(`${API_BASE_URL}/rag/${id}/documents/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error adding documents to knowledge base:', error)
+        throw error
+    }
+}
+
+// Document Collection Types
+export interface DocumentCollectionCreateRequest {
+    name: string
+    description?: string
+    text_processing: {
+        chunk_token_size: number
+        min_chunk_size_chars: number
+        min_chunk_length_to_embed: number
+        embeddings_batch_size: number
+        max_num_chunks: number
+        use_vision_model: boolean
+        vision_model?: string
+        vision_provider?: string
+        template?: {
+            enabled: boolean
+            template: string
+            metadata_template: Record<string, string>
+        }
+    }
+}
+
+export interface DocumentCollectionResponse {
+    id: string
+    name: string
+    description?: string
+    status: 'processing' | 'ready' | 'failed'
+    created_at: string
+    updated_at: string
+    document_count: number
+    chunk_count: number
+    error_message?: string
+}
+
+// Vector Index Types
+export interface VectorIndexCreateRequest {
+    name: string
+    description?: string
+    collection_id: string
+    embedding: {
+        model: string
+        vector_db: string
+        search_strategy: string
+        semantic_weight?: number
+        keyword_weight?: number
+        top_k?: number
+        score_threshold?: number
+    }
+}
+
+export interface VectorIndexResponse {
+    id: string
+    name: string
+    description?: string
+    collection_id: string
+    status: 'processing' | 'ready' | 'failed'
+    created_at: string
+    updated_at: string
+    document_count: number
+    chunk_count: number
+    error_message?: string
+    embedding_model: string
+    vector_db: string
+}
+
+// Document Collection Functions
+export const createDocumentCollection = async (
+    data: DocumentCollectionCreateRequestSchema,
+    files?: File[]
+): Promise<DocumentCollectionResponseSchema> => {
+    try {
+        const formData = new FormData()
+
+        // Add metadata
+        formData.append('metadata', JSON.stringify(data))
+
+        // Add files if present
+        if (files) {
+            files.forEach((file) => {
+                formData.append('files', file)
+            })
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/rag/collections/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error creating document collection:', error)
+        throw error
+    }
+}
+
+export const listDocumentCollections = async (): Promise<DocumentCollectionResponseSchema[]> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/collections/`)
+        return response.data
+    } catch (error) {
+        console.error('Error listing document collections:', error)
+        throw error
+    }
+}
+
+export const getDocumentCollection = async (id: string): Promise<DocumentCollectionResponseSchema> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/collections/${id}/`)
+        return response.data
+    } catch (error) {
+        console.error('Error getting document collection:', error)
+        throw error
+    }
+}
+
+export const deleteDocumentCollection = async (id: string): Promise<void> => {
+    try {
+        await axios.delete(`${API_BASE_URL}/rag/collections/${id}/`)
+    } catch (error) {
+        console.error('Error deleting document collection:', error)
+        throw error
+    }
+}
+
+export const addDocumentsToCollection = async (id: string, files: File[]): Promise<any> => {
+    try {
+        const formData = new FormData()
+        files.forEach((file) => {
+            formData.append('files', file)
+        })
+
+        const response = await axios.post(`${API_BASE_URL}/rag/collections/${id}/documents/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error adding documents to collection:', error)
+        throw error
+    }
+}
+
+// Vector Index Functions
+export const createVectorIndex = async (data: VectorIndexCreateRequestSchema): Promise<VectorIndexResponseSchema> => {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/rag/indices/`, data)
+        return response.data
+    } catch (error) {
+        console.error('Error creating vector index:', error)
+        throw error
+    }
+}
+
+export const listVectorIndices = async (): Promise<VectorIndexResponseSchema[]> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/indices/`)
+        return response.data
+    } catch (error) {
+        console.error('Error listing vector indices:', error)
+        throw error
+    }
+}
+
+export const getVectorIndex = async (id: string): Promise<VectorIndexResponseSchema> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/indices/${id}/`)
+        return response.data
+    } catch (error) {
+        console.error('Error getting vector index:', error)
+        throw error
+    }
+}
+
+export const deleteVectorIndex = async (id: string): Promise<void> => {
+    try {
+        await axios.delete(`${API_BASE_URL}/rag/indices/${id}/`)
+    } catch (error) {
+        console.error('Error deleting vector index:', error)
+        throw error
+    }
+}
+
+export const getCollectionDocuments = async (id: string): Promise<DocumentWithChunksSchema[]> => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/rag/collections/${id}/documents/`)
+        return response.data
+    } catch (error) {
+        console.error('Error getting collection documents:', error)
+        throw error
+    }
+}
+
+export const getIndexProgress = async (indexId: string): Promise<ProcessingProgressSchema | null> => {
+    try {
+        const response = await axios.get<ProcessingProgressSchema>(`${API_BASE_URL}/rag/indices/${indexId}/progress/`)
+        return response.data
+    } catch (error: any) {
+        // For 404, return null instead of throwing
+        if (error.response?.status === 404) {
+            return null
+        }
+        // For other errors, throw
+        throw error
+    }
+}
+
+export const previewChunk = async (
+    file: File,
+    config: {
+        chunk_token_size: number
+        min_chunk_size_chars: number
+        min_chunk_length_to_embed: number
+        template: ChunkTemplateSchema
+    }
+): Promise<ChunkPreviewResponseSchema> => {
+    try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append(
+            'chunking_config',
+            JSON.stringify({
+                chunk_token_size: config.chunk_token_size,
+                min_chunk_size_chars: config.min_chunk_size_chars,
+                min_chunk_length_to_embed: config.min_chunk_length_to_embed,
+                template: config.template,
+            })
+        )
+
+        const response = await axios.post(`${API_BASE_URL}/rag/collections/preview_chunk/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error previewing chunk:', error)
+        throw error
+    }
+}
+
+export const uploadTestFiles = async (
+    workflowId: string,
+    nodeId: string,
+    files: File[]
+): Promise<Record<string, string[]>> => {
+    try {
+        const formData = new FormData()
+        formData.append('workflow_id', workflowId)
+        formData.append('node_id', nodeId)
+        files.forEach((file) => {
+            formData.append('files', file)
+        })
+
+        const response = await axios.post(`${API_BASE_URL}/wf/upload_test_files/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        return response.data
+    } catch (error) {
+        console.error('Error uploading test files:', error)
+        throw error
+    }
+}

@@ -1,5 +1,3 @@
-// frontend/src/utils/JSPydanticModel.js
-
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 
@@ -31,7 +29,6 @@ class JSPydanticModel {
             const cleanedObj = this.excludeSchemaKeywords(obj)
             return cleanedObj
         } catch (error) {
-            console.error('Error compiling schema:', error)
             return null
         }
     }
@@ -75,38 +72,50 @@ class JSPydanticModel {
                     // Copy all fields from the original node
                     const processedNode = { ...node }
 
-                    // Process schemas for input, output, and config
-                    ;['input', 'output', 'config'].forEach((key) => {
-                        if (node[key]) {
-                            try {
-                                const validator = this.ajv.compile(node[key])
-                                const obj = {}
-                                validator(obj)
+                        // Process schemas for input, output, and config
+                        ;['input', 'output', 'config'].forEach((key) => {
+                            if (node[key]) {
+                                try {
+                                    const validator = this.ajv.compile(node[key])
+                                    const obj = {}
+                                    validator(obj)
 
-                                // Merge the validated object with any existing fields for non-conditional nodes
-                                processedNode[key] = {
-                                    ...node[key], // Keep original fields like title, description etc
-                                    ...obj, // Add validated default values
-                                }
-
-                                // EXAMPLE: if this is the LLM node, define "api_base" so AJV doesn't strip it
-                                if (node.name === 'LLMNode' && key === 'config') {
-                                    // Make sure there's a properties object
-                                    processedNode[key].properties = processedNode[key].properties || {}
-                                    processedNode[key].properties.api_base = {
-                                        type: 'string',
-                                        title: 'API Base',
+                                    // For config, include all properties defined in the schema, even without defaults
+                                    if (key === 'config' && node[key].properties) {
+                                        Object.keys(node[key].properties).forEach(propKey => {
+                                            // Check if property has an enum and default value
+                                            const prop = node[key].properties[propKey]
+                                            if (prop.enum && prop.default) {
+                                                obj[propKey] = prop.default
+                                            } else if (!(propKey in obj)) {
+                                                obj[propKey] = null;
+                                            }
+                                        });
                                     }
-                                }
 
-                                // Exclude JSON Schema keywords from the resulting object
-                                processedNode[key] = this.excludeSchemaKeywords(processedNode[key])
-                            } catch (error) {
-                                console.error(`Error processing ${key} schema for node:`, error)
-                                processedNode[key] = node[key] || {} // Fallback to original or empty object
+                                    // Merge the validated object with any existing fields for non-conditional nodes
+                                    processedNode[key] = {
+                                        ...node[key], // Keep original fields like title, description etc
+                                        ...obj, // Add validated default values
+                                    }
+
+                                    // EXAMPLE: if this is the LLM node, define "api_base" so AJV doesn't strip it
+                                    if (node.name === 'LLMNode' && key === 'config') {
+                                        // Make sure there's a properties object
+                                        processedNode[key].properties = processedNode[key].properties || {}
+                                        processedNode[key].properties.api_base = {
+                                            type: 'string',
+                                            title: 'API Base',
+                                        }
+                                    }
+
+                                    // Exclude JSON Schema keywords from the resulting object
+                                    processedNode[key] = this.excludeSchemaKeywords(processedNode[key])
+                                } catch (error) {
+                                    processedNode[key] = node[key] || {} // Fallback to original or empty object
+                                }
                             }
-                        }
-                    })
+                        })
 
                     return processedNode
                 })
@@ -120,6 +129,7 @@ class JSPydanticModel {
         // Initialize metadata with existing categories from schema
         this._metadata = {}
         const categories = Object.keys(this._schema).filter((key) => Array.isArray(this._schema[key]))
+
         categories.forEach((category) => {
             this._metadata[category] = []
         })
@@ -178,6 +188,12 @@ class JSPydanticModel {
             return acc
         }, {})
 
+        // Add required field if this field is required or has minLength > 0
+        if (schema.minLength > 0 || schema === '...') {
+            // @ts-ignore
+            metadata.required = true
+        }
+
         // Store metadata in nested structure
         if (Object.keys(metadata).length > 0) {
             this.setNestedMetadata(path, metadata)
@@ -204,6 +220,16 @@ class JSPydanticModel {
                     // Update existing metadata with name and visual_tag
                     this._metadata[category][index].name = node.name
                     this._metadata[category][index].visual_tag = node.visual_tag
+                }
+
+                // Handle required fields from config
+                if (node.config && node.config.required) {
+                    node.config.required.forEach(field => {
+                        if (!this._metadata[category][index].config[field]) {
+                            this._metadata[category][index].config[field] = {}
+                        }
+                        this._metadata[category][index].config[field].required = true
+                    })
                 }
 
                 ;['input', 'output', 'config'].forEach((schemaType) => {

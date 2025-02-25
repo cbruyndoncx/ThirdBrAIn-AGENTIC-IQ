@@ -3,6 +3,11 @@ export interface WorkflowNodeCoordinates {
     y: number
 }
 
+export interface WorkflowNodeDimensions {
+    width: number
+    height: number
+}
+
 export interface TestInput {
     id: number
     [key: string]: any
@@ -14,7 +19,9 @@ export interface WorkflowNode {
     node_type: string
     config: Record<string, any>
     coordinates?: WorkflowNodeCoordinates
+    dimensions?: WorkflowNodeDimensions
     subworkflow?: WorkflowDefinition
+    parent_id?: string
 }
 
 export interface WorkflowLink {

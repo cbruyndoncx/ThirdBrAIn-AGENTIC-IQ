@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { getNodeTypes } from '../utils/api'
 import { RootState } from './store'
+import { ModelConstraintsMap, FieldMetadata } from '../types/api_types/modelMetadataSchemas'
 
 // Define the types for the conditional node
 type ComparisonOperator =
@@ -34,16 +35,13 @@ interface RouterNodeConfig {
     title?: string
 }
 
-// Define interfaces for the metadata structure
-interface NodeMetadata {
+// Update the NodeMetadata interface to include config fields
+export interface NodeMetadata {
     name: string
-    config?: {
-        routes?: RouteCondition[]
-        input_schema?: Record<string, string>
-        output_schema?: Record<string, string>
-        title?: string
-        api_base?: string
-        [key: string]: any
+    config?: Record<string, FieldMetadata>
+    visual_tag?: {
+        color: string
+        acronym: string
     }
     [key: string]: any
 }
@@ -60,14 +58,6 @@ interface NodeTypesResponse {
     metadata: Record<string, NodeMetadata[]>
 }
 
-export interface FieldMetadata {
-    enum?: string[]
-    default?: any
-    title?: string
-    minimum?: number
-    maximum?: number
-    type?: string
-}
 
 export interface FlowWorkflowNodeType {
     name: string
@@ -75,6 +65,7 @@ export interface FlowWorkflowNodeType {
         routes?: RouteCondition[]
         input_schema?: Record<string, string>
         output_schema?: Record<string, string>
+        has_fixed_schema?: boolean
         title?: string
         system_message?: string
         user_message?: string
@@ -91,6 +82,9 @@ export interface FlowWorkflowNodeType {
     }
     metadata?: Record<string, any>
     data?: Record<string, any>
+    logo?: string
+    model_constraints?: ModelConstraintsMap
+    category?: string
 }
 
 export interface FlowWorkflowNodeTypesByCategory {
@@ -136,7 +130,9 @@ const findMetadataInCategory = (
     nodeType: string,
     path: string
 ): any | null => {
-    if (!metadata) return null
+    if (!metadata) {
+        return null
+    }
 
     // Get categories dynamically from metadata object
     const categories = Object.keys(metadata)
@@ -176,6 +172,72 @@ export const selectPropertyMetadata = (
     const [nodeType, ...pathParts] = propertyPath.split('.')
     const remainingPath = pathParts.join('.')
     return findMetadataInCategory(state.nodeTypes.metadata, nodeType, remainingPath)
+}
+
+export const getNodeMissingRequiredFields = (
+    nodeType: string,
+    nodeConfig: Record<string, any>,
+    metadata: Record<string, NodeMetadata[]>
+): string[] => {
+    const categories = Object.keys(metadata)
+    for (const category of categories) {
+        const nodeMetadata = metadata[category]?.find(md => md.name === nodeType)
+        if (nodeMetadata) {
+            const missingFields: string[] = []
+
+            if (nodeMetadata.config) {
+                Object.entries(nodeMetadata.config).forEach(([field, fieldMetadata]) => {
+                    // Skip schema type fields
+                    if (field.toLowerCase().includes('schema')) {
+                        return
+                    }
+
+                    // Special handling for llm_info/ModelInfo
+                    if (field === 'llm_info' || field === 'ModelInfo') {
+                        // If the field exists at all, consider it valid since it has defaults
+                        if (nodeConfig.llm_info !== undefined) {
+                            return
+                        }
+                        // Only add ModelInfo as missing if it's completely undefined
+                        missingFields.push('ModelInfo')
+                        return
+                    }
+
+                    // Regular field handling
+                    if (fieldMetadata.required) {
+                        const value = nodeConfig[field]
+                        if (value === undefined || value === null || value === '' ||
+                            (typeof value === 'string' && value.trim() === '') ||
+                            (Array.isArray(value) && value.length === 0)) {
+                            missingFields.push(field)
+                        }
+                    }
+
+                    // Check other nested fields
+                    if (fieldMetadata.properties && field !== 'llm_info') {
+                        Object.entries(fieldMetadata.properties).forEach(([nestedField, nestedMetadata]) => {
+                            // Skip nested schema type fields
+                            if (nestedField.toLowerCase().includes('schema')) {
+                                return
+                            }
+                            
+                            if (nestedMetadata.required) {
+                                const nestedValue = nodeConfig[field]?.[nestedField]
+                                if (nestedValue === undefined || nestedValue === null || nestedValue === '' ||
+                                    (typeof nestedValue === 'string' && nestedValue.trim() === '') ||
+                                    (Array.isArray(nestedValue) && nestedValue.length === 0)) {
+                                    missingFields.push(`${field}.${nestedField}`)
+                                }
+                            }
+                        })
+                    }
+                })
+            }
+
+            return missingFields
+        }
+    }
+    return []
 }
 
 export default nodeTypesSlice.reducer

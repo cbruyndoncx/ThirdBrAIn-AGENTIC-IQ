@@ -5,10 +5,14 @@ WORKDIR /pyspur
 # Install bash completion
 RUN apt-get update && apt-get install -y \
     bash-completion \
+    nano \
+    vim \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt ./backend/
-RUN pip install -r backend/requirements.txt
+RUN pip install uv
+
+COPY backend/ backend/
+RUN uv pip install --system -e /pyspur/backend/
 
 # Install Node.js for frontend development
 RUN curl -fsSL https://deb.nodesource.com/setup_23.x | bash - \

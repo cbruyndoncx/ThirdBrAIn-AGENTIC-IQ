@@ -1,15 +1,16 @@
 'use client'
 
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { useEditor, EditorContent, Editor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import { Color } from '@tiptap/extension-color'
-import TextStyle from '@tiptap/extension-text-style'
-import ListItem from '@tiptap/extension-list-item'
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@nextui-org/react'
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, useDisclosure } from '@heroui/react'
 import { Icon } from '@iconify/react'
+import { Color } from '@tiptap/extension-color'
+import ListItem from '@tiptap/extension-list-item'
+import TextStyle from '@tiptap/extension-text-style'
+import Underline from '@tiptap/extension-underline'
+import { Editor, EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
 import { List, ListOrdered } from 'lucide-react'
+import React, { forwardRef, useEffect, useImperativeHandle } from 'react'
+import { Markdown } from 'tiptap-markdown'
 import styles from './TextEditor.module.css'
 
 interface TextEditorProps {
@@ -21,6 +22,8 @@ interface TextEditorProps {
     fullScreen?: boolean
     inputSchema?: string[]
     fieldTitle?: string
+    disableFormatting?: boolean
+    isTemplateEditor?: boolean
 }
 
 interface TextEditorRef {
@@ -28,9 +31,39 @@ interface TextEditorRef {
 }
 
 const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
-    ({ content, setContent, isEditable = true, fullScreen = false, inputSchema = [], fieldTitle }, ref) => {
-        const editor = useEditor({
-            extensions: [
+    (
+        { content: initialContent, setContent, isEditable = true, fullScreen = false, inputSchema = [], fieldTitle, disableFormatting = false, isTemplateEditor = false },
+        ref
+    ) => {
+        const [localContent, setLocalContent] = React.useState(initialContent)
+
+        useEffect(() => {
+            setLocalContent(initialContent)
+        }, [initialContent])
+
+        const getEditorExtensions = () => {
+            if (disableFormatting) {
+                return [
+                    StarterKit.configure({
+                        heading: false,
+                        bold: false,
+                        italic: false,
+                        bulletList: false,
+                        orderedList: false,
+                        code: false,
+                        codeBlock: false,
+                        blockquote: false,
+                        strike: false,
+                    }),
+                    Markdown.configure({
+                        html: false,
+                        transformPastedText: true,
+                        transformCopiedText: true,
+                    }),
+                ]
+            }
+
+            return [
                 Color.configure({ types: [TextStyle.name, ListItem.name] }),
                 TextStyle.configure(),
                 StarterKit.configure({
@@ -38,8 +71,17 @@ const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
                     orderedList: { keepMarks: true, keepAttributes: false },
                 }),
                 Underline,
-            ],
-            content: content,
+                Markdown.configure({
+                    html: false,
+                    transformPastedText: true,
+                    transformCopiedText: true,
+                }),
+            ]
+        }
+
+        const editor = useEditor({
+            extensions: getEditorExtensions(),
+            content: localContent ? localContent : '',
             editorProps: {
                 attributes: {
                     class: [
@@ -51,15 +93,17 @@ const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
                         .join(' '),
                 },
             },
+            parseOptions: {
+                preserveWhitespace: 'full',
+            },
             onUpdate: ({ editor }) => {
-                setContent(editor.getHTML())
+                const newContent = editor.storage.markdown?.getMarkdown() ?? ''
+                setLocalContent(newContent)
+                setContent(newContent)
             },
             editable: isEditable,
             autofocus: 'end',
             immediatelyRender: false,
-            parseOptions: {
-                preserveWhitespace: 'full',
-            },
         })
 
         useImperativeHandle(ref, () => ({
@@ -73,58 +117,45 @@ const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
         const { isOpen, onOpen, onOpenChange } = useDisclosure()
 
         const modalEditor = useEditor({
-            extensions: [
-                Color.configure({ types: [TextStyle.name, ListItem.name] }),
-                TextStyle.configure(),
-                StarterKit.configure({
-                    bulletList: { keepMarks: true, keepAttributes: false },
-                    orderedList: { keepMarks: true, keepAttributes: false },
-                }),
-                Underline,
-            ],
-            content: content || '',
+            extensions: getEditorExtensions(),
+            content: localContent ? localContent : '',
             editorProps: {
                 attributes: {
-                    class: `w-full bg-content2 hover:bg-content3 transition-colors min-h-[40vh] resize-y rounded-medium px-3 py-2 text-foreground outline-none placeholder:text-foreground-500`,
+                    class: 'w-full bg-content2 hover:bg-content3 transition-colors min-h-[40vh] resize-y rounded-medium px-3 py-2 text-foreground outline-none placeholder:text-foreground-500',
                 },
             },
             onUpdate: ({ editor }) => {
-                const newContent = editor.getHTML()
-                if (newContent !== content) {
-                    setContent(newContent)
-                }
+                const newContent = editor.storage.markdown?.getMarkdown() ?? ''
+                setLocalContent(newContent)
+                setContent(newContent)
             },
             editable: true,
             autofocus: false,
             immediatelyRender: false,
-            parseOptions: {
-                preserveWhitespace: 'full',
-            },
         })
 
-        React.useEffect(() => {
-            if (modalEditor && content !== modalEditor.getHTML()) {
-                modalEditor.commands.setContent(content || '')
-            }
-        }, [content, modalEditor])
-
-        React.useEffect(() => {
-            return () => {
-                if (modalEditor) {
-                    modalEditor.destroy()
-                }
-            }
-        }, [modalEditor])
-
+        // Update effect to only sync modal editor content when modal opens
         useEffect(() => {
-            if (editor && content !== editor.getHTML()) {
-                editor.commands.setContent(content || '')
+            if (isOpen && modalEditor && editor) {
+                const content = editor.storage.markdown?.getMarkdown() ?? ''
+                modalEditor.commands.setContent(content)
             }
-        }, [content, editor])
+        }, [isOpen, modalEditor, editor])
 
         const renderVariableButtons = (editorInstance: Editor | null) => {
-            if (inputSchema === null || inputSchema === undefined || inputSchema.length === 0) {
-                return null
+            // Only show variable buttons if this is a template editor
+            if (!isTemplateEditor) return null;
+
+            // Show message when no input schema is available (undefined or empty array)
+            if (!inputSchema || !Array.isArray(inputSchema) || inputSchema.length === 0) {
+                return (
+                    <div className="flex items-center gap-2 mb-2 px-2">
+                        <span className="text-foreground-500 text-sm flex items-center gap-1">
+                            <Icon icon="solar:info-circle-linear" className="w-4 h-4" />
+                            Connect nodes to use variables
+                        </span>
+                    </div>
+                )
             }
 
             const generateFullSchemaJson = () => {
@@ -185,86 +216,87 @@ const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
 
             return (
                 <div className={toolbarClassName}>
-                    <div className="flex justify-start items-center gap-1 w-full lg:w-10/12 flex-wrap">
-                        <Button
-                            onPress={() => editorInstance.chain().focus().toggleBold().run()}
-                            disabled={!editorInstance.can().chain().focus().toggleBold().run()}
-                            color="primary"
-                            variant={editorInstance.isActive('bold') ? 'solid' : 'flat'}
-                            size={buttonSize}
-                            isIconOnly
-                        >
-                            <Icon icon="solar:text-bold-linear" className={buttonClassName} />
-                        </Button>
-                        <Button
-                            onPress={() => editorInstance.chain().focus().toggleItalic().run()}
-                            disabled={!editorInstance.can().chain().focus().toggleItalic().run()}
-                            color="primary"
-                            variant={editorInstance.isActive('italic') ? 'solid' : 'flat'}
-                            size={buttonSize}
-                            isIconOnly
-                        >
-                            <Icon icon="solar:text-italic-linear" className={buttonClassName} />
-                        </Button>
-                        <Button
-                            onPress={() => editorInstance.chain().focus().toggleUnderline().run()}
-                            disabled={!editorInstance.can().chain().focus().toggleUnderline().run()}
-                            color="primary"
-                            variant={editorInstance.isActive('underline') ? 'solid' : 'flat'}
-                            size={buttonSize}
-                            isIconOnly
-                        >
-                            <Icon icon="solar:text-underline-linear" className={buttonClassName} />
-                        </Button>
-                        <Button
-                            onPress={() => editorInstance.chain().focus().toggleBulletList().run()}
-                            color="primary"
-                            variant={editorInstance.isActive('bulletList') ? 'solid' : 'flat'}
-                            size={buttonSize}
-                            isIconOnly
-                        >
-                            <List className={buttonClassName} />
-                        </Button>
-                        <Button
-                            onPress={() => editorInstance.chain().focus().toggleOrderedList().run()}
-                            color="primary"
-                            variant={editorInstance.isActive('orderedList') ? 'solid' : 'flat'}
-                            size={buttonSize}
-                            isIconOnly
-                        >
-                            <ListOrdered className={buttonClassName} />
-                        </Button>
-                    </div>
+                    {!disableFormatting && (
+                        <div className="flex justify-start items-center gap-1 w-full lg:w-10/12 flex-wrap">
+                            <Button
+                                onPress={() => editorInstance.chain().focus().toggleBold().run()}
+                                disabled={!editorInstance.can().chain().focus().toggleBold().run()}
+                                color="primary"
+                                variant={editorInstance.isActive('bold') ? 'solid' : 'flat'}
+                                size={buttonSize}
+                                isIconOnly
+                            >
+                                <Icon icon="solar:text-bold-linear" className={buttonClassName} />
+                            </Button>
+                            <Button
+                                onPress={() => editorInstance.chain().focus().toggleItalic().run()}
+                                disabled={!editorInstance.can().chain().focus().toggleItalic().run()}
+                                color="primary"
+                                variant={editorInstance.isActive('italic') ? 'solid' : 'flat'}
+                                size={buttonSize}
+                                isIconOnly
+                            >
+                                <Icon icon="solar:text-italic-linear" className={buttonClassName} />
+                            </Button>
+                            <Button
+                                onPress={() => editorInstance.chain().focus().toggleUnderline().run()}
+                                disabled={!editorInstance.can().chain().focus().toggleUnderline().run()}
+                                color="primary"
+                                variant={editorInstance.isActive('underline') ? 'solid' : 'flat'}
+                                size={buttonSize}
+                                isIconOnly
+                            >
+                                <Icon icon="solar:text-underline-linear" className={buttonClassName} />
+                            </Button>
+                            <Button
+                                onPress={() => editorInstance.chain().focus().toggleBulletList().run()}
+                                color="primary"
+                                variant={editorInstance.isActive('bulletList') ? 'solid' : 'flat'}
+                                size={buttonSize}
+                                isIconOnly
+                            >
+                                <List className={buttonClassName} />
+                            </Button>
+                            <Button
+                                onPress={() => editorInstance.chain().focus().toggleOrderedList().run()}
+                                color="primary"
+                                variant={editorInstance.isActive('orderedList') ? 'solid' : 'flat'}
+                                size={buttonSize}
+                                isIconOnly
+                            >
+                                <ListOrdered className={buttonClassName} />
+                            </Button>
+                        </div>
+                    )}
                     {renderVariableButtons(editorInstance)}
                 </div>
             )
         }
 
-        const handleCancel = (onClose: () => void) => {
-            if (modalEditor) {
-                modalEditor.commands.setContent(content || '')
+        const handleSave = (onClose: () => void) => {
+            if (modalEditor && editor) {
+                const content = modalEditor.storage.markdown?.getMarkdown() ?? ''
+                editor.commands.setContent(content)
+                setLocalContent(content)
+                setContent(content)
             }
             onClose()
         }
 
-        const handleSave = (onClose: () => void) => {
-            if (modalEditor) {
-                setContent(modalEditor.getHTML())
+        const handleCancel = (onClose: () => void) => {
+            if (modalEditor && editor) {
+                const content = editor.storage.markdown?.getMarkdown() ?? ''
+                modalEditor.commands.setContent(content)
             }
             onClose()
         }
 
         return (
-            <div>
-                {fieldTitle && (
-                    <div className="flex justify-between items-center mb-2 ml-2 font-semibold">
-                        <span>{fieldTitle}</span>
-                        {!fullScreen && (
-                            <Button onPress={onOpen} isIconOnly>
-                                <Icon icon="solar:full-screen-linear" className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
+            <div className="relative">
+                {!fullScreen && (
+                    <Button onPress={onOpen} isIconOnly className="absolute top-0 right-0 z-10" size="sm">
+                        <Icon icon="solar:full-screen-linear" className="w-4 h-4" />
+                    </Button>
                 )}
 
                 {isEditable && renderToolbar(editor)}

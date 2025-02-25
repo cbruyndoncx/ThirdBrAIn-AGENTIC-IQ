@@ -23,6 +23,16 @@ export function rolloutWorkflowDefinition({ workflowDefinition, tasks }: Rollout
 
         if (!task.subworkflow) return
 
+        // Find the node type
+        const nodeType = rolledOutDefinition.nodes.find((node) => node.id === task.node_id).node_type
+        if (nodeType === 'ForLoopNode') {
+            // just pull the subworkflow outputs into the parent node
+            if (task.subworkflow_output) {
+                outputs = { ...outputs, ...task.subworkflow_output }
+            }
+            return
+        }
+
         const nodeToReplace = rolledOutDefinition.nodes.find((node) => node.id === task.node_id)
         if (!nodeToReplace) return
 

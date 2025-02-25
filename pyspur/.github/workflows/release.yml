@@ -1,24 +1,28 @@
-name: Release Docker Images
+name: Release
 
 on:
   release:
-    types: [published]
+    types: [created]
 
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
 
 jobs:
-  build-and-push:
+  build-and-push-docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write  # needed for PyPI publishing
+    outputs:
+      image_name: ${{ steps.meta-backend.outputs.tags }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -36,31 +40,26 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Extract metadata (tags, labels) for Frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ./Dockerfile.backend
           push: true
           target: production
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
 
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
+      - name: Build Python package
+        run: |
+          # Create dist directory
+          mkdir -p dist
+          
+          # Build package using the container we just built - use first tag
+          DOCKER_TAG=$(echo "${{ steps.meta-backend.outputs.tags }}" | head -n1)
+          docker run --rm -v "$(pwd)/dist:/dist" "$DOCKER_TAG" sh -c "cd /pyspur/backend && uv build && cp dist/* /dist/"
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          target: production
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }} 
+          packages-dir: dist/ 

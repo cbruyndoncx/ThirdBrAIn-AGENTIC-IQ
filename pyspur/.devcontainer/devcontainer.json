@@ -25,22 +25,27 @@
                 "github.copilot-chat",
                 // Backend extensions
                 "ms-python.python",
-                "ms-python.black-formatter",
-                "ms-python.pylance",
-                "ms-python.vscode-pylance",
+                "charliermarsh.ruff",
+                "tamasfe.even-better-toml",
                 // Frontend extensions
                 "dbaeumer.vscode-eslint",
                 "esbenp.prettier-vscode",
                 "ms-vscode.vscode-typescript-next"
             ],
             "settings": {
+                // Python analysis settings
                 "python.analysis.autoImportCompletions": true,
                 "python.analysis.autoImportUserSymbols": true,
                 "python.analysis.importFormat": "relative",
-                "python.analysis.importSortEnabled": true,
-                "python.analysis.importSortOrder": ["stdlib", "thirdparty", "local"],
                 "python.analysis.typeCheckingMode": "strict",
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
+                
+                // Python linting and formatting
+                "python.linting.enabled": true,
+                "python.linting.mypyEnabled": false,
+                "python.linting.ruffEnabled": true,
+
+                // TypeScript settings
                 "typescript.tsdk": "/pyspur/frontend/node_modules/typescript/lib",
                 "typescript.preferences.importModuleSpecifier": "non-relative",
                 "typescript.preferences.projectRoot": "/pyspur/frontend",
@@ -50,7 +55,11 @@
                 "[python]": {
                     "editor.formatOnType": true,
                     "editor.formatOnSave": true,
-                    "editor.defaultFormatter": "ms-python.black-formatter"
+                    "editor.defaultFormatter": "charliermarsh.ruff",
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "always",
+                        "source.fixAll.ruff": "always"
+                    }
                 },
                 "[json]": {
                     "editor.quickSuggestions": {

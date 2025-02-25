@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/PySpur-Dev/pyspur.git
 	branch = main
-	commit = 07b32cabe0926c7c63ff25666e3f82ddf21026de
-	parent = ed972012fd29c3a301ea6ad221bdd014dc3319c6
+	commit = 8253276be390bb533a3bacc2ea660364a22ee2ec
+	parent = 5b0cce0c4deb6a516337d4a2d83d01d63ad47466
 	method = merge
 	cmdver = 0.4.9

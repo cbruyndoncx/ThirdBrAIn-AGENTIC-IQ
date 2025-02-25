@@ -4,12 +4,12 @@ import RunViewFlowCanvas from '@/components/canvas/RunViewFlowCanvas'
 import Header from '../../components/Header'
 import { PersistGate } from 'redux-persist/integration/react'
 import { persistor } from '../../store/store'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { fetchNodeTypes } from '../../store/nodeTypesSlice'
 import { setTestInputs } from '../../store/flowSlice'
 import { getRunStatus } from '../../utils/api'
-import { AppDispatch } from '../../store/store'
+import { AppDispatch, RootState } from '../../store/store'
 import { rolloutWorkflowDefinition } from '../../utils/subworkflowUtils'
 
 import { RunResponse } from '@/types/api_types/runSchemas'
@@ -26,6 +26,8 @@ const TracePage: React.FC = () => {
         name: string
         definition: WorkflowDefinition
     } | null>(null)
+    const [handleDownloadImage, setHandleDownloadImage] = useState<(() => void) | undefined>()
+    const projectName = useSelector((state: RootState) => state.flow.projectName)
 
     useEffect(() => {
         dispatch(fetchNodeTypes())
@@ -76,9 +78,20 @@ const TracePage: React.FC = () => {
     return (
         <PersistGate loading={null} persistor={persistor}>
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-                <Header activePage="trace" />
+                <Header
+                    activePage="trace"
+                    associatedWorkflowId={workflowId}
+                    runId={id as string}
+                    handleDownloadImage={handleDownloadImage}
+                />
                 <div style={{ flexGrow: 1 }}>
-                    <RunViewFlowCanvas workflowData={workflowData} nodeOutputs={nodeOutputs} workflowID={workflowId} />
+                    <RunViewFlowCanvas
+                        workflowData={workflowData}
+                        nodeOutputs={nodeOutputs}
+                        workflowID={workflowId}
+                        onDownloadImageInit={(handler) => setHandleDownloadImage(() => handler)}
+                        projectName={projectName}
+                    />
                 </div>
             </div>
         </PersistGate>

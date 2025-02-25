@@ -1,4 +1,4 @@
-const { nextui } = require('@nextui-org/theme')
+const { heroui } = require('@heroui/theme')
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
@@ -6,9 +6,9 @@ module.exports = {
         './app/**/*.{js,ts,jsx,tsx,mdx}',
         './pages/**/*.{js,ts,jsx,tsx,mdx}',
         './components/**/*.{js,ts,jsx,tsx,mdx}',
-        './node_modules/@nextui-org/theme/dist/components/(button|navbar|table|ripple|spinner|checkbox|spacer).js',
+        './node_modules/@heroui/theme/dist/components/(button|navbar|table|ripple|spinner|checkbox|spacer).js',
         './src/**/*.{js,ts,jsx,tsx}',
-        './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
+        './node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
     ],
     theme: {
         extend: {
@@ -62,8 +62,8 @@ module.exports = {
         },
     },
     plugins: [
-        require('@nextui-org/react'), // Add this line
+        require('@heroui/react'), // Add this line
         require('tailwindcss-animate'),
-        nextui(),
+        heroui(),
     ],
 }

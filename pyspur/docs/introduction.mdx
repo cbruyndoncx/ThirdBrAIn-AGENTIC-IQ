@@ -1,71 +1,80 @@
 ---
 title: Introduction
-description: 'Welcome to the home of your new documentation'
+description: 'PySpur is a graph UI for visualizing agent trajectories in Python. AI engineers use it to build agents, execute them step-by-step and inspect past runs.'
 ---
 
-<img
-  className="block dark:hidden"
-  src="/images/hero-light.svg"
-  alt="Hero Light"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/hero-dark.svg"
-  alt="Hero Dark"
-/>
+<video
+controls
+  muted
+  loop
+  playsInline
+  className="block dark:hidden w-full aspect-video" src="/images/hero-light.mp4" />
+<video
+controls
+  muted
+  loop
+  playsInline className="hidden dark:block w-full aspect-video" src="/images/hero-dark.mp4" />
 
-## Setting up
 
-The first step to world-class documentation is setting up your editing environments.
+# Why PySpur?
+
+## 1. Rapid Feedback Loops
+
+* **Build and test in one place**: Run the workflow, observe each node's outputs, and iterate.
+* **Drag-and-drop**: Add new nodes that *just* work off-the-shelf within seconds.
+* **Vendor unification**: Instead of 20 nodes for 20 vendors, unified nodes enable you to jump between eg. models quickly to see which one is best for your use case.
+
+## 2. AI-Native
+
+Unlike traditional workflow platforms, PySpur is AI-Native and comes with batteries included.
+
+* **RAG**: Parse, chunk, embed, upsert data and maintain vector indices.
+* **Loops**: Workflow graphs can include cycles for iterative tool calling.
+* **Evals**: Score the performance of your agents to improve their robustness.
+* **Tools**: >10 Popular integrations available as tools, with more to come.
+* **Multimodal**: Support for video, images, audio, texts, code.
+
+## 3. Easy Extensibility
+
+You can add custom nodes with a simple Python decorator:
+
+```python
+@NodeRegistry.register(
+    category="Integrations",
+    display_name="Firecrawl Scrape",
+    logo="/images/firecrawl.png"
+)
+class FirecrawlScrapeNode(BaseNode):
+    name = "firecrawl_scrape_node"
+    config_model = FirecrawlScrapeNodeConfig
+    input_model = FirecrawlScrapeNodeInput
+    output_model = FirecrawlScrapeNodeOutput
+    category = "Firecrawl"  # This will be used by the frontend for subcategory grouping
+
+    async def run(self, input: BaseModel) -> BaseModel:
+        """
+        Scrapes a URL and returns the content in markdown or structured format.
+        """
+        pass
+```
+
+## Next steps
+
+The first step to documentation is setting up your editing environments.
 
 <CardGroup cols={2}>
   <Card
-    title="Edit Your Docs"
-    icon="pen-to-square"
-    href="https://mintlify.com/docs/quickstart"
+    title="Example Walkthrough"
+    icon="play"
+    href="https://docs.pyspur.dev/example"
   >
-    Get your docs set up locally for easy development
+    See PySpur in action
   </Card>
   <Card
-    title="Preview Changes"
-    icon="image"
-    href="https://mintlify.com/docs/development"
+    title="Quickstart"
+    icon="rocket"
+    href="https://docs.pyspur.dev/quickstart"
   >
-    Preview your changes before you push to make sure they're perfect
-  </Card>
-</CardGroup>
-
-## Make it yours
-
-Update your docs to your brand and add valuable content for the best user conversion.
-
-<CardGroup cols={2}>
-  <Card
-    title="Customize Style"
-    icon="palette"
-    href="https://mintlify.com/docs/settings/global"
-  >
-    Customize your docs to your company's colors and brands
-  </Card>
-  <Card
-    title="Reference APIs"
-    icon="code"
-    href="https://mintlify.com/docs/api-playground/openapi"
-  >
-    Automatically generate endpoints from an OpenAPI spec
-  </Card>
-  <Card
-    title="Add Components"
-    icon="screwdriver-wrench"
-    href="https://mintlify.com/docs/components/accordion"
-  >
-    Build interactive features and designs to guide your users
-  </Card>
-  <Card
-    title="Get Inspiration"
-    icon="stars"
-    href="https://mintlify.com/customers"
-  >
-    Check out our showcase of our favorite documentation
+    Install PySpur in under 2 minutes
   </Card>
 </CardGroup>

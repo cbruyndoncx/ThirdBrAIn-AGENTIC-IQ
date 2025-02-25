@@ -1,4 +1,4 @@
-import { FlowWorkflowEdge, FlowWorkflowNode } from '@/store/flowSlice'
+import { FlowWorkflowNode, FlowWorkflowEdge } from '@/types/api_types/nodeTypeSchemas'
 import dagre from '@dagrejs/dagre'
 
 export const getLayoutedNodes = (nodes: FlowWorkflowNode[], edges: FlowWorkflowEdge[], direction = 'LR') => {
@@ -13,7 +13,7 @@ export const getLayoutedNodes = (nodes: FlowWorkflowNode[], edges: FlowWorkflowE
     dagreGraph.setDefaultEdgeLabel(() => ({}))
 
     nodes.forEach((node) => {
-        if (node.measured) {
+        if (node.measured && node.parentId === null) {
             dagreGraph.setNode(node.id, {
                 width: node.measured.width,
                 height: node.measured.height,

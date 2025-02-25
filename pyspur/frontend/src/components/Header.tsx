@@ -1,54 +1,53 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
 import {
+    Alert,
+    Button,
+    CircularProgress,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownTrigger,
     Input,
+    Link,
     Navbar,
     NavbarBrand,
     NavbarContent,
     NavbarItem,
-    Link,
-    Button,
     Spinner,
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownItem,
-    Alert,
-    CircularProgress,
-} from '@nextui-org/react'
+    Tooltip,
+} from '@heroui/react'
 import { Icon } from '@iconify/react'
-import SettingsCard from './modals/SettingsModal'
-import { setProjectName, updateNodeDataOnly, resetRun } from '../store/flowSlice'
-import RunModal from './modals/RunModal'
-import { getRunStatus, startRun, getWorkflow } from '../utils/api'
-import { Toaster, toast } from 'sonner'
-import { getWorkflowRuns } from '../utils/api'
-import { useRouter } from 'next/router'
-import DeployModal from './modals/DeployModal'
 import { formatDistanceStrict } from 'date-fns'
+import { useRouter } from 'next/router'
+import React, { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import store from '../store/store'
+import { useDispatch, useSelector } from 'react-redux'
+import { useSaveWorkflow } from '../hooks/useSaveWorkflow'
+import { useWorkflowExecution } from '../hooks/useWorkflowExecution'
+import { useWorkflowFileOperations } from '../hooks/useWorkflowFileOperations'
+import { setProjectName, setRunModalOpen } from '../store/flowSlice'
+import { RootState } from '../store/store'
+import { AlertState } from '../types/alert'
+import { getRunStatus, getWorkflow } from '../utils/api'
+import ConfirmationModal from './modals/ConfirmationModal'
+import DeployModal from './modals/DeployModal'
+import HelpModal from './modals/HelpModal'
+import RunModal from './modals/RunModal'
+import SettingsCard from './modals/SettingsModal'
 
 interface HeaderProps {
-    activePage: 'dashboard' | 'workflow' | 'evals' | 'trace'
+    activePage: 'dashboard' | 'workflow' | 'evals' | 'trace' | 'rag'
+    associatedWorkflowId?: string
+    runId?: string
+    handleDownloadImage?: () => void
 }
 
-
-import { RootState } from '../store/store'
-interface AlertState {
-    message: string
-    color: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'
-    isVisible: boolean
-}
-
-const Header: React.FC<HeaderProps> = ({ activePage }) => {
+const Header: React.FC<HeaderProps> = ({ activePage, associatedWorkflowId, runId, handleDownloadImage }) => {
     const dispatch = useDispatch()
     const nodes = useSelector((state: RootState) => state.flow.nodes)
     const projectName = useSelector((state: RootState) => state.flow.projectName)
-    const [isRunning, setIsRunning] = useState<boolean>(false)
+    const nodeTypesConfig = useSelector((state: RootState) => state.nodeTypes.data)
     const [isDebugModalOpen, setIsDebugModalOpen] = useState<boolean>(false)
     const [isDeployModalOpen, setIsDeployModalOpen] = useState<boolean>(false)
-    const [workflowRuns, setWorkflowRuns] = useState<any[]>([])
     const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false)
     const workflowId = useSelector((state: RootState) => state.flow.workflowID)
     const [alert, setAlert] = useState<AlertState>({
@@ -57,158 +56,48 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
         isVisible: false,
     })
     const testInputs = useSelector((state: RootState) => state.flow.testInputs)
-    const [selectedRow, setSelectedRow] = useState<number | null>(null)
-    const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false)
-    const [completionPercentage, setCompletionPercentage] = useState<number>(0)
+    const selectedTestInputId = useSelector((state: RootState) => state.flow.selectedTestInputId)
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false)
+    const isRunModalOpen = useSelector((state: RootState) => state.flow.isRunModalOpen)
 
     const router = useRouter()
     const { id } = router.query
     const isRun = id && id[0] == 'R'
-
-    let currentStatusInterval: NodeJS.Timeout | null = null
-
-    const fetchWorkflowRuns = async () => {
-        try {
-            const response = await getWorkflowRuns(workflowId)
-            setWorkflowRuns(response)
-        } catch (error) {
-            console.error('Error fetching workflow runs:', error)
-        }
-    }
-
-    useEffect(() => {
-        if (workflowId) {
-            fetchWorkflowRuns()
-        }
-    }, [workflowId])
-
-    useEffect(() => {
-        if (testInputs.length > 0 && !selectedRow) {
-            setSelectedRow(testInputs[0].id)
-        }
-    }, [testInputs])
 
     const showAlert = (message: string, color: AlertState['color']) => {
         setAlert({ message, color, isVisible: true })
         setTimeout(() => setAlert((prev) => ({ ...prev, isVisible: false })), 3000)
     }
 
-    const updateWorkflowStatus = async (runID: string): Promise<void> => {
-        let pollCount = 0
-        if (currentStatusInterval) {
-            clearInterval(currentStatusInterval)
-        }
-        currentStatusInterval = setInterval(async () => {
-            try {
-                const statusResponse = await getRunStatus(runID)
-                const tasks = statusResponse.tasks
+    const {
+        isRunning,
+        completionPercentage,
+        workflowRuns,
+        isUpdatingStatus,
+        executeWorkflow,
+        stopWorkflow,
+        updateRunStatuses,
+    } = useWorkflowExecution({ onAlert: showAlert })
 
-                if (statusResponse.percentage_complete !== undefined) {
-                    setCompletionPercentage(statusResponse.percentage_complete)
-                }
+    const saveWorkflow = useSaveWorkflow()
 
-                if (statusResponse.status === 'FAILED' || tasks.some((task) => task.status === 'FAILED')) {
-                    setIsRunning(false)
-                    setCompletionPercentage(0)
-                    clearInterval(currentStatusInterval)
-                    showAlert('Workflow run failed.', 'danger')
-                    return
-                }
-
-                if (tasks.length > 0) {
-                    tasks.forEach((task) => {
-                        const nodeId = task.node_id
-                        let node = nodes.find((node) => node.id === nodeId)
-                        if (!node) {
-                            // find the node by title in nodeConfigs
-                            const state = store.getState()
-                            const correspondingNodeId = Object.keys(state.flow.nodeConfigs).find(
-                                (key) => state.flow.nodeConfigs[key].title === nodeId
-                            )
-                            if (correspondingNodeId) {
-                                node = nodes.find((node) => node.id === correspondingNodeId)
-                            }
-                        }
-                        if (!node) {
-                            return
-                        }
-                        const output_values = task.outputs || {}
-                        const nodeTaskStatus = task.status
-                        if (node) {
-                            // Check if the task output or status is different from current node data
-                            const isOutputDifferent = JSON.stringify(output_values) !== JSON.stringify(node.data?.run)
-                            const isStatusDifferent = nodeTaskStatus !== node.data?.taskStatus
-
-                            if (isOutputDifferent || isStatusDifferent) {
-                                dispatch(
-                                    updateNodeDataOnly({
-                                        id: node.id,
-                                        data: {
-                                            run: { ...node.data.run, ...output_values },
-                                            taskStatus: nodeTaskStatus,
-                                        },
-                                    })
-                                )
-                            }
-                        }
-                    })
-                }
-
-                if (statusResponse.status !== 'RUNNING') {
-                    setIsRunning(false)
-                    setCompletionPercentage(0)
-                    clearInterval(currentStatusInterval)
-                    showAlert('Workflow run completed.', 'success')
-                }
-
-                pollCount += 1
-            } catch (error) {
-                console.error('Error fetching workflow status:', error)
-                clearInterval(currentStatusInterval)
-            }
-        }, 1000)
-    }
-
-    const workflowID = typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : null
-
-    const executeWorkflow = async (inputValues: Record<string, any>): Promise<void> => {
-        if (!workflowID) return
-
-        try {
-            showAlert('Starting workflow run...', 'default')
-            const result = await startRun(workflowId, inputValues, null, 'interactive')
-            setIsRunning(true)
-            fetchWorkflowRuns()
-            dispatch(resetRun())
-            updateWorkflowStatus(result.id)
-        } catch (error) {
-            console.error('Error starting workflow run:', error)
-            showAlert('Error starting workflow run.', 'danger')
-        }
-    }
+    const { handleFileUpload, isConfirmationOpen, setIsConfirmationOpen, handleConfirmOverwrite, pendingWorkflowData } =
+        useWorkflowFileOperations({ showAlert })
 
     const handleRunWorkflow = async (): Promise<void> => {
-        setIsDebugModalOpen(true)
-    }
-
-    const handleStopWorkflow = (): void => {
-        setIsRunning(false)
-        setCompletionPercentage(0)
-        if (currentStatusInterval) {
-            clearInterval(currentStatusInterval)
-        }
-        showAlert('Workflow run stopped.', 'warning')
+        dispatch(setRunModalOpen(true))
     }
 
     const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         dispatch(setProjectName(e.target.value))
+        saveWorkflow()
     }
 
     const handleDownloadWorkflow = async (): Promise<void> => {
-        if (!workflowID) return
+        if (!workflowId) return
 
         try {
-            const workflow = await getWorkflow(workflowID)
+            const workflow = await getWorkflow(workflowId)
 
             const workflowDetails = {
                 name: workflow.name,
@@ -239,17 +128,29 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
         setIsDeployModalOpen(true)
     }
 
-    const getApiEndpoint = (): string => {
-        if (typeof window === 'undefined') {
-            return ''
+    useEffect(() => {
+        if (isHistoryOpen) {
+            updateRunStatuses()
         }
-        const baseUrl = window.location.origin
-        return `${baseUrl}/api/wf/${workflowId}/start_run/?run_type=non_blocking`
-    }
+    }, [isHistoryOpen])
 
+    useEffect(() => {
+        if (activePage === 'workflow' || activePage === 'trace') {
+            document.title = `${projectName} - PySpur`
+        }
+        if (activePage === 'dashboard') {
+            document.title = `Dashboard - PySpur`
+        }
+        if (activePage === 'evals') {
+            document.title = `Evals - PySpur`
+        }
+        if (activePage === 'rag') {
+            document.title = `RAG - PySpur`
+        }
+    }, [projectName, activePage])
 
     useHotkeys(
-        ['mod+enter', 'ctrl+enter'],
+        ['mod+enter'],
         (e) => {
             e.preventDefault()
 
@@ -258,12 +159,12 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                 return
             }
 
-            const testCase = testInputs.find((row) => row.id === selectedRow) ?? testInputs[0]
+            const testCase = testInputs.find((row) => row.id.toString() === selectedTestInputId) ?? testInputs[0]
 
             if (testCase) {
                 const { id, ...inputValues } = testCase
                 const inputNode = nodes.find((node) => node.type === 'InputNode')
-                const inputNodeId = inputNode?.data?.title || inputNode?.id
+                const inputNodeId = inputNode?.id
 
                 if (inputNodeId) {
                     const initialInputs = {
@@ -279,39 +180,58 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
         }
     )
 
-    const updateRunStatuses = async () => {
-        if (!workflowId || !isHistoryOpen) return
+    const handleDownloadTrace = async (): Promise<void> => {
+        if (!runId) return
 
-        setIsUpdatingStatus(true)
         try {
-            // First fetch the latest workflow runs
-            const latestRuns = await getWorkflowRuns(workflowId)
-            setWorkflowRuns(latestRuns)
+            // Show loading state in the alert
+            showAlert('Preparing trace data...', 'default')
 
-            // Then update the status of running/pending runs
-            const updatedRuns = await Promise.all(
-                latestRuns.map(async (run) => {
-                    if (run.status.toLowerCase() === 'running' || run.status.toLowerCase() === 'pending') {
-                        const statusResponse = await getRunStatus(run.id)
-                        return { ...run, status: statusResponse.status }
-                    }
-                    return run
-                })
-            )
+            // Fetch run data on demand
+            const runData = await getRunStatus(runId)
 
-            setWorkflowRuns(updatedRuns)
+            const traceData = {
+                id: runData.id,
+                workflow_id: runData.workflow_id,
+                status: runData.status,
+                start_time: runData.start_time,
+                end_time: runData.end_time,
+                initial_inputs: runData.initial_inputs,
+                outputs: runData.outputs,
+                tasks: runData.tasks.map((task) => ({
+                    id: task.id,
+                    node_id: task.node_id,
+                    status: task.status,
+                    inputs: task.inputs,
+                    outputs: task.outputs,
+                    error: task.error,
+                    start_time: task.start_time,
+                    end_time: task.end_time,
+                })),
+            }
+
+            const blob = new Blob([JSON.stringify(traceData, null, 2)], {
+                type: 'application/json',
+            })
+
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `trace_${runData.id}.json`
+
+            document.body.appendChild(a)
+            a.click()
+
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+
+            // Show success message
+            showAlert('Trace downloaded successfully', 'success')
         } catch (error) {
-            console.error('Error updating run statuses:', error)
-        } finally {
-            setIsUpdatingStatus(false)
+            console.error('Error downloading trace:', error)
+            showAlert('Error downloading trace', 'danger')
         }
     }
-
-    useEffect(() => {
-        if (isHistoryOpen) {
-            updateRunStatuses()
-        }
-    }, [isHistoryOpen])
 
     return (
         <>
@@ -320,10 +240,19 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                     <Alert color={alert.color}>{alert.message}</Alert>
                 </div>
             )}
+            <ConfirmationModal
+                isOpen={isConfirmationOpen}
+                onClose={() => setIsConfirmationOpen(false)}
+                onConfirm={handleConfirmOverwrite}
+                title="Overwrite Workflow"
+                message={`Are you sure you want to overwrite the current workflow with "${pendingWorkflowData?.name}"? This action cannot be undone.`}
+                confirmText="Overwrite"
+                isDanger
+            />
             <Navbar
                 classNames={{
-                    base: 'lg:bg-background lg:backdrop-filter-none h-12 mt-1 shadow-sm',
-                    wrapper: 'px-4 sm:px-6',
+                    base: 'lg:bg-background lg:backdrop-filter-none h-12 shadow-sm',
+                    wrapper: 'max-w-7xl w-full mx-auto',
                     item: [
                         'flex',
                         'relative',
@@ -341,19 +270,23 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                     ],
                 }}
             >
-                <NavbarBrand className="h-12 max-w-fit">
+                <NavbarBrand className="h-full max-w-fit">
                     {activePage === 'dashboard' ? (
-                        <p className="font-bold text-default-900 cursor-pointer">PySpur</p>
+                        <div className="flex items-center gap-2 cursor-pointer">
+                            <p className="font-bold text-lg text-default-900">PySpur</p>
+                        </div>
                     ) : (
                         <Link href="/" className="cursor-pointer">
-                            <p className="font-bold text-default-900">PySpur</p>
+                            <div className="flex items-center gap-2">
+                                <p className="font-bold text-default-900">PySpur</p>
+                            </div>
                         </Link>
                     )}
                 </NavbarBrand>
 
                 {(activePage === 'workflow' || activePage === 'trace') && (
                     <NavbarContent
-                        className="h-12 rounded-full bg-content2 dark:bg-content1 sm:flex"
+                        className="h-12 rounded-full bg-transparent sm:flex"
                         id="workflow-title"
                         justify="start"
                     >
@@ -364,6 +297,11 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                             value={projectName}
                             onChange={handleProjectNameChange}
                             disabled={activePage !== 'workflow'}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.currentTarget.blur()
+                                }
+                            }}
                         />
                     </NavbarContent>
                 )}
@@ -382,6 +320,11 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                     <NavbarItem isActive={activePage === 'evals'}>
                         <Link className="flex gap-2 text-inherit" href="/evals">
                             Evals
+                        </Link>
+                    </NavbarItem>
+                    <NavbarItem isActive={activePage === 'rag'}>
+                        <Link className="flex gap-2 text-inherit" href="/rag">
+                            RAG
                         </Link>
                     </NavbarItem>
                 </NavbarContent>
@@ -405,14 +348,9 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                                             />
                                         </NavbarItem>
                                         <NavbarItem className="hidden sm:flex">
-                                            <Button
-                                                isIconOnly
-                                                radius="full"
-                                                variant="light"
-                                                onClick={handleStopWorkflow}
-                                            >
+                                            <Button isIconOnly radius="full" variant="light" onPress={stopWorkflow}>
                                                 <Icon
-                                                    className="text-default-500"
+                                                    className="text-foreground/60"
                                                     icon="solar:stop-linear"
                                                     width={22}
                                                 />
@@ -421,9 +359,34 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                                     </>
                                 ) : (
                                     <NavbarItem className="hidden sm:flex">
-                                        <Button isIconOnly radius="full" variant="light" onClick={handleRunWorkflow}>
-                                            <Icon className="text-default-500" icon="solar:play-linear" width={22} />
-                                        </Button>
+                                        <Tooltip
+                                            content={
+                                                <div className="px-1 py-2">
+                                                    <div className="text-small font-bold">Run Workflow</div>
+                                                    <div className="text-tiny">
+                                                        Press{' '}
+                                                        <kbd>
+                                                            {navigator.platform.includes('Mac') ? '⌘ CMD' : 'Ctrl'}
+                                                        </kbd>
+                                                        +<kbd>Enter</kbd>
+                                                    </div>
+                                                </div>
+                                            }
+                                            placement="bottom"
+                                        >
+                                            <Button
+                                                isIconOnly
+                                                radius="full"
+                                                variant="light"
+                                                onPress={handleRunWorkflow}
+                                            >
+                                                <Icon
+                                                    className="text-foreground/60"
+                                                    icon="solar:play-linear"
+                                                    width={22}
+                                                />
+                                            </Button>
+                                        </Tooltip>
                                     </NavbarItem>
                                 )}
                             </>
@@ -432,7 +395,7 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                             <Dropdown isOpen={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                                 <DropdownTrigger>
                                     <Button isIconOnly radius="full" variant="light">
-                                        <Icon className="text-default-500" icon="solar:history-linear" width={22} />
+                                        <Icon className="text-foreground/60" icon="solar:history-linear" width={22} />
                                     </Button>
                                 </DropdownTrigger>
                                 <DropdownMenu>
@@ -450,16 +413,17 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                                                 onPress={() => window.open(`/trace/${run.id}`, '_blank')}
                                                 textValue={`Version ${index + 1}`}
                                             >
-                                                {`${run.id} | ${run.status.toLowerCase()} ${(run.status.toLowerCase() === 'running' ||
-                                                    run.status.toLowerCase() === 'pending') &&
+                                                {`${run.id} | ${run.status.toLowerCase()} ${
+                                                    (run.status.toLowerCase() === 'running' ||
+                                                        run.status.toLowerCase() === 'pending') &&
                                                     run.start_time
-                                                    ? `for last ${formatDistanceStrict(Date.parse(run.start_time + 'Z'), new Date(), { addSuffix: false })}`
-                                                    : (run.status.toLowerCase() === 'failed' ||
-                                                        run.status.toLowerCase() === 'completed') &&
-                                                        run.end_time
-                                                        ? `${formatDistanceStrict(Date.parse(run.end_time + 'Z'), new Date(), { addSuffix: true })}`
-                                                        : ''
-                                                    }`}
+                                                        ? `for last ${formatDistanceStrict(Date.parse(run.start_time + 'Z'), new Date(), { addSuffix: false })}`
+                                                        : (run.status.toLowerCase() === 'failed' ||
+                                                                run.status.toLowerCase() === 'completed') &&
+                                                            run.end_time
+                                                          ? `${formatDistanceStrict(Date.parse(run.end_time + 'Z'), new Date(), { addSuffix: true })}`
+                                                          : ''
+                                                }`}
                                             </DropdownItem>
                                         ))
                                     )}
@@ -467,39 +431,140 @@ const Header: React.FC<HeaderProps> = ({ activePage }) => {
                             </Dropdown>
                         </NavbarItem>
                         <NavbarItem className="hidden sm:flex">
-                            <Button isIconOnly radius="full" variant="light" onClick={handleDownloadWorkflow}>
-                                <Icon className="text-default-500" icon="solar:download-linear" width={24} />
-                            </Button>
+                            <Dropdown>
+                                <DropdownTrigger>
+                                    <Button isIconOnly radius="full" variant="light">
+                                        <Icon className="text-foreground/60" icon="solar:download-linear" width={24} />
+                                    </Button>
+                                </DropdownTrigger>
+                                <DropdownMenu>
+                                    <DropdownItem
+                                        key="download-json-workflow"
+                                        onPress={handleDownloadWorkflow}
+                                        startContent={
+                                            <Icon
+                                                className="text-foreground/60"
+                                                icon="solar:document-text-linear"
+                                                width={20}
+                                            />
+                                        }
+                                    >
+                                        Download JSON
+                                    </DropdownItem>
+                                    <DropdownItem
+                                        key="download-image-workflow"
+                                        onPress={handleDownloadImage}
+                                        startContent={
+                                            <Icon
+                                                className="text-foreground/60"
+                                                icon="solar:gallery-linear"
+                                                width={20}
+                                            />
+                                        }
+                                    >
+                                        Download Image
+                                    </DropdownItem>
+                                </DropdownMenu>
+                            </Dropdown>
                         </NavbarItem>
                         <NavbarItem className="hidden sm:flex">
-                            <Button isIconOnly radius="full" variant="light" onClick={handleDeploy}>
-                                <Icon className="text-default-500" icon="solar:cloud-upload-linear" width={24} />
+                            <Tooltip content="Upload Workflow JSON">
+                                <Button isIconOnly radius="full" variant="light" onPress={handleFileUpload}>
+                                    <Icon className="text-foreground/60" icon="solar:upload-linear" width={24} />
+                                </Button>
+                            </Tooltip>
+                        </NavbarItem>
+                        <NavbarItem className="hidden sm:flex">
+                            <Button isIconOnly radius="full" variant="light" onPress={handleDeploy}>
+                                <Icon className="text-foreground/60" icon="solar:cloud-upload-linear" width={24} />
                             </Button>
                         </NavbarItem>
                     </NavbarContent>
                 )}
+                {activePage === 'trace' && associatedWorkflowId && (
+                    <NavbarContent
+                        className="ml-auto flex h-12 max-w-fit items-center gap-0 rounded-full p-0 lg:bg-content2 lg:px-1 lg:dark:bg-content1"
+                        justify="end"
+                    >
+                        <NavbarItem className="hidden sm:flex">
+                            <Dropdown>
+                                <DropdownTrigger>
+                                    <Button isIconOnly radius="full" variant="light">
+                                        <Icon className="text-foreground/60" icon="solar:download-linear" width={24} />
+                                    </Button>
+                                </DropdownTrigger>
+                                <DropdownMenu>
+                                    <DropdownItem
+                                        key="download-json-trace"
+                                        onPress={handleDownloadTrace}
+                                        startContent={
+                                            <Icon
+                                                className="text-foreground/60"
+                                                icon="solar:document-text-linear"
+                                                width={20}
+                                            />
+                                        }
+                                    >
+                                        Download JSON
+                                    </DropdownItem>
+                                    <DropdownItem
+                                        key="download-image-trace"
+                                        onPress={handleDownloadImage}
+                                        startContent={
+                                            <Icon
+                                                className="text-foreground/60"
+                                                icon="solar:gallery-linear"
+                                                width={20}
+                                            />
+                                        }
+                                    >
+                                        Download Image
+                                    </DropdownItem>
+                                </DropdownMenu>
+                            </Dropdown>
+                        </NavbarItem>
+                        <NavbarItem>
+                            <Link href={`/workflows/${associatedWorkflowId}`}>
+                                <Button variant="light">Go To Workflow</Button>
+                            </Link>
+                        </NavbarItem>
+                    </NavbarContent>
+                )}
                 <NavbarContent
-                    className="ml-2 flex h-12 max-w-fit items-center gap-0 rounded-full p-0 lg:bg-content2 lg:px-1 lg:dark:bg-content1"
+                    className="flex h-12 max-w-fit items-center gap-0 rounded-full p-0 lg:bg-content2 lg:px-1 lg:dark:bg-content1"
                     justify="end"
                 >
                     <NavbarItem className="hidden sm:flex">
                         <SettingsCard />
                     </NavbarItem>
+                    <NavbarItem className="hidden sm:flex">
+                        <Button
+                            isIconOnly
+                            radius="full"
+                            variant="light"
+                            onPress={() => setIsHelpModalOpen(true)}
+                            aria-label="Help"
+                        >
+                            <Icon className="text-foreground/60" icon="solar:question-circle-linear" width={24} />
+                        </Button>
+                    </NavbarItem>
                 </NavbarContent>
             </Navbar>
             <RunModal
-                isOpen={isDebugModalOpen}
-                onOpenChange={setIsDebugModalOpen}
+                isOpen={isRunModalOpen}
+                onOpenChange={(isOpen) => dispatch(setRunModalOpen(isOpen))}
                 onRun={async (selectedInputs) => {
                     await executeWorkflow(selectedInputs)
-                    setIsDebugModalOpen(false)
+                    dispatch(setRunModalOpen(false))
                 }}
             />
             <DeployModal
                 isOpen={isDeployModalOpen}
                 onOpenChange={setIsDeployModalOpen}
-                getApiEndpoint={getApiEndpoint}
+                workflowId={workflowId}
+                testInput={testInputs.find((row) => row.id.toString() === selectedTestInputId) ?? testInputs[0]}
             />
+            <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
         </>
     )
 }

@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "target": "es2016",
-        "module": "commonjs",
+        "module": "esnext",
         "baseUrl": ".",
         "plugins": [
             {
@@ -20,7 +20,7 @@
         "checkJs": true,
         "noEmit": true,
         "jsx": "preserve",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "incremental": true,

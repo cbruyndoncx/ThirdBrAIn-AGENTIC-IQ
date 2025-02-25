@@ -1,14 +1,18 @@
-import React, { memo } from 'react'
-import ZoomInOut from './ZoomInOut'
-import { MiniMap } from '@xyflow/react'
-import UndoRedo from './UndoRedo'
-import { Button, ButtonGroup } from '@nextui-org/react'
-import { useModeStore } from '../../../store/modeStore'
+import { Button, ButtonGroup, Tooltip } from '@heroui/react'
 import { Icon } from '@iconify/react'
-import TipPopup from './TipPopUp'
+import { MiniMap } from '@xyflow/react'
 import { useTheme } from 'next-themes'
+import { memo } from 'react'
+import { useModeStore } from '../../../store/modeStore'
+import UndoRedo from './UndoRedo'
+import ZoomInOut from './ZoomInOut'
 
-function Operator({ handleLayout }) {
+interface OperatorProps {
+    handleLayout: () => void
+    handleDownloadImage: () => void
+}
+
+const Operator: React.FC<OperatorProps> = ({ handleLayout, handleDownloadImage }) => {
     const mode = useModeStore((state) => state.mode)
     const setMode = useModeStore((state) => state.setMode)
     const { theme } = useTheme()
@@ -20,15 +24,36 @@ function Operator({ handleLayout }) {
                 style={{
                     width: 102,
                     height: 72,
-                    background: isDark ? '#333' : '#fff',
                 }}
                 nodeColor={() => (isDark ? '#777' : '#eee')}
-                className="!absolute !left-4 !bottom-14 z-[9] !m-0 !w-[102px] !h-[72px] !border-[0.5px] !border-default-200 !rounded-lg !shadow-lg"
+                className={`
+                    bg-content2
+                    dark:bg-content2/10
+                    !absolute
+                    !left-4
+                    !bottom-14
+                    z-[9]
+                    !m-0
+                    !w-[102px]
+                    !h-[72px]
+                    !border-[0.5px]
+                    !border-default-200
+                    !rounded-lg
+                    !shadow-lg
+                `}
             />
             <div className="flex items-center mt-1 gap-2 absolute left-4 bottom-4 z-[9]">
                 <ZoomInOut />
                 <ButtonGroup>
-                    <TipPopup title="Select" shortcuts={['v']}>
+                    <Tooltip
+                        content={
+                            <div className="px-1 py-2">
+                                <div className="text-small font-bold">Select</div>
+                                <div className="text-tiny">Press <kbd>V</kbd></div>
+                            </div>
+                        }
+                        placement="bottom"
+                    >
                         <Button
                             size="sm"
                             isIconOnly
@@ -36,26 +61,42 @@ function Operator({ handleLayout }) {
                             className="bg-background"
                         >
                             <Icon
-                                className={`${mode === ('pointer' as any) ? 'text-foreground' : 'text-default-600'}`}
+                                className={mode === ('pointer' as any) ? 'text-foreground' : 'text-foreground/60'}
                                 icon={mode === ('pointer' as any) ? 'solar:cursor-bold' : 'solar:cursor-linear'}
                                 width={16}
                             />
                         </Button>
-                    </TipPopup>
-                    <TipPopup title="Pan" shortcuts={['space']}>
+                    </Tooltip>
+                    <Tooltip
+                        content={
+                            <div className="px-1 py-2">
+                                <div className="text-small font-bold">Pan</div>
+                                <div className="text-tiny">Press <kbd>Space</kbd></div>
+                            </div>
+                        }
+                        placement="bottom"
+                    >
                         <Button size="sm" isIconOnly onPress={() => setMode('hand')} className="bg-background">
                             <Icon
-                                className={`${mode === 'hand' ? 'text-foreground' : 'text-default-600'}`}
+                                className={mode === 'hand' ? 'text-foreground' : 'text-foreground/60'}
                                 icon={mode === 'hand' ? 'solar:hand-shake-bold' : 'solar:hand-shake-linear'}
                                 width={16}
                             />
                         </Button>
-                    </TipPopup>
-                    <TipPopup title="Layout Nodes">
+                    </Tooltip>
+                    <Tooltip
+                        content={
+                            <div className="px-1 py-2">
+                                <div className="text-small font-bold">Layout Nodes</div>
+                                <div className="text-tiny">Press <kbd>{navigator.platform.includes('Mac') ? '⌘ CMD' : 'Ctrl'}</kbd>+<kbd>L</kbd></div>
+                            </div>
+                        }
+                        placement="bottom"
+                    >
                         <Button size="sm" isIconOnly onPress={handleLayout} className="bg-background">
-                            <Icon className="text-default-600" icon="solar:ruler-angular-linear" width={16} />
+                            <Icon className="text-foreground" icon="solar:ruler-angular-linear" width={16} />
                         </Button>
-                    </TipPopup>
+                    </Tooltip>
                 </ButtonGroup>
                 <ButtonGroup>
                     <UndoRedo />

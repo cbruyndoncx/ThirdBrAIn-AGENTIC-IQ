@@ -9,7 +9,7 @@ import {
     TableCell,
     Button,
     Progress,
-} from '@nextui-org/react'
+} from '@heroui/react'
 import { Icon } from '@iconify/react'
 import { getAllRuns, downloadOutputFile } from '../utils/api'
 

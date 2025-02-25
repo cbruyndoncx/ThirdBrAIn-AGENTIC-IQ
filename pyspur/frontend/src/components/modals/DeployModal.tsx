@@ -10,56 +10,83 @@ import {
     Tooltip,
     Select,
     SelectItem,
-} from '@nextui-org/react'
+    Switch,
+} from '@heroui/react'
 import { Icon } from '@iconify/react'
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/cjs/prism'
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism'
-import { FlowState } from '@/store/flowSlice'
+import { FlowState } from '@/types/api_types/flowStateSchema'
+import { TestInput } from '@/types/api_types/workflowSchemas'
 
 interface DeployModalProps {
     isOpen: boolean
     onOpenChange: Dispatch<SetStateAction<boolean>>
-    getApiEndpoint: () => string
+    workflowId: string
+    testInput: TestInput
 }
 
 interface RootState {
     flow: FlowState
 }
 
-type SupportedLanguages = 'python' | 'javascript' | 'typescript' | 'rust' | 'java' | 'cpp'
+type SupportedLanguages = 'shell' | 'python' | 'javascript' | 'typescript' | 'rust' | 'java' | 'cpp'
 
-const DeployModal: React.FC<DeployModalProps> = ({ isOpen, onOpenChange, getApiEndpoint }) => {
+const DeployModal: React.FC<DeployModalProps> = ({ isOpen, onOpenChange, workflowId, testInput }) => {
     const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguages>('python')
+    const [apiCallType, setApiCallType] = useState<'blocking' | 'non-blocking'>('non-blocking')
     const nodes = useSelector((state: RootState) => state.flow.nodes)
     const nodeConfigs = useSelector((state: RootState) => state.flow.nodeConfigs)
     const inputNode = nodes.find((node) => node.type === 'InputNode')
     const workflowInputVariables = inputNode ? nodeConfigs[inputNode.id]?.output_schema || {} : {}
 
-    // Create example request body with the actual input variables
-    const exampleRequestBody = {
-        initial_inputs: Object.keys(workflowInputVariables).reduce<Record<string, any>>((acc, key) => {
-            acc[key] =
-                workflowInputVariables[key].type === 'number'
-                    ? 0
-                    : workflowInputVariables[key].type === 'boolean'
-                      ? false
-                      : 'example_value'
-            return acc
-        }, {}),
+    const getApiEndpoint = (): string => {
+        if (typeof window === 'undefined') {
+            return ''
+        }
+        const baseUrl = window.location.origin
+        if (apiCallType === 'non-blocking') {
+            return `${baseUrl}/api/wf/${workflowId}/start_run/?run_type=non_blocking`
+        } else {
+            return `${baseUrl}/api/wf/${workflowId}/run/?run_type=blocking`
+        }
     }
 
-    const codeExamples: Record<SupportedLanguages, string> = {
-        python: `import requests
+    // Create example request body with the actual input variables
+    const exampleRequestBody = {
+        initial_inputs: {
+            [inputNode?.data.title]: Object.keys(workflowInputVariables).reduce<Record<string, any>>((acc, key) => {
+                acc[key] = testInput?.hasOwnProperty(key)
+                    ? testInput[key]
+                    : workflowInputVariables[key].type === 'number'
+                      ? 0
+                      : workflowInputVariables[key].type === 'boolean'
+                        ? false
+                        : 'example_value'
+                return acc
+            }, {}),
+        },
+    }
 
-url = '${getApiEndpoint()}'
-data = ${JSON.stringify(exampleRequestBody, null, 2)}
+    const getCodeExample = (language: SupportedLanguages): string => {
+        const endpoint = getApiEndpoint()
+        const requestBody = JSON.stringify(exampleRequestBody, null, 2)
+
+        const examples: Record<SupportedLanguages, string> = {
+            shell: `curl -X POST ${endpoint} \\
+    -H "Content-Type: application/json" \\
+    -d '${requestBody}'`,
+
+            python: `import requests
+
+url = '${endpoint}'
+data = ${requestBody}
 
 response = requests.post(url, json=data)
 
 print(response.status_code)
 print(response.json())`,
 
-        javascript: `fetch('${getApiEndpoint()}', {
+            javascript: `fetch('${endpoint}', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -70,8 +97,8 @@ print(response.json())`,
   .then(data => console.log(data))
   .catch(error => console.error('Error:', error));`,
 
-        typescript: `async function runWorkflow() {
-  const response = await fetch('${getApiEndpoint()}', {
+            typescript: `async function runWorkflow() {
+  const response = await fetch('${endpoint}', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -83,14 +110,14 @@ print(response.json())`,
   console.log(data);
 }`,
 
-        rust: `use reqwest;
+            rust: `use reqwest;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let response = client
-        .post("${getApiEndpoint()}")
+        .post("${endpoint}")
         .json(&${JSON.stringify(exampleRequestBody)})
         .send()
         .await?;
@@ -100,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }`,
 
-        java: `import java.net.http.HttpClient;
+            java: `import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
@@ -111,7 +138,7 @@ public class WorkflowClient {
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("${getApiEndpoint()}"))
+            .uri(URI.create("${endpoint}"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
@@ -124,12 +151,12 @@ public class WorkflowClient {
     }
 }`,
 
-        cpp: `#include <cpr/cpr.h>
+            cpp: `#include <cpr/cpr.h>
 #include <iostream>
 
 int main() {
     cpr::Response r = cpr::Post(
-        cpr::Url{"${getApiEndpoint()}"},
+        cpr::Url{"${endpoint}"},
         cpr::Header{{"Content-Type", "application/json"}},
         cpr::Body{R"(${JSON.stringify(exampleRequestBody)})"});
 
@@ -138,6 +165,90 @@ int main() {
 
     return 0;
 }`,
+        }
+
+        return examples[language]
+    }
+
+    const getStatusEndpoint = (): string => {
+        if (typeof window === 'undefined') {
+            return ''
+        }
+        const baseUrl = window.location.origin
+        return `${baseUrl}/api/runs/{run_id}/status/`
+    }
+
+    const getStatusCheckExample = (language: SupportedLanguages): string => {
+        const endpoint = getStatusEndpoint()
+
+        const examples: Record<SupportedLanguages, string> = {
+            shell: `curl ${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}`,
+
+            python: `import requests
+
+url = '${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}'
+
+response = requests.get(url)
+print(response.json())`,
+
+            javascript: `fetch('${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}')
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error('Error:', error));`,
+
+            typescript: `async function checkRunStatus(runId: string) {
+  const response = await fetch('${endpoint.replace('{run_id}', '')}' + runId);
+  const data = await response.json();
+  console.log(data);
+}`,
+
+            rust: `use reqwest;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}")
+        .send()
+        .await?;
+
+    println!("Response: {}", response.text().await?);
+    Ok(())
+}`,
+
+            java: `import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+
+public class StatusCheck {
+    public static void main(String[] args) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}"))
+            .GET()
+            .build();
+
+        HttpResponse<String> response = client.send(request,
+            HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+}`,
+
+            cpp: `#include <cpr/cpr.h>
+#include <iostream>
+
+int main() {
+    cpr::Response r = cpr::Get(
+        cpr::Url{"${endpoint.replace('{run_id}', 'YOUR_RUN_ID')}"});
+
+    std::cout << "Response: " << r.text << std::endl;
+    return 0;
+}`,
+        }
+
+        return examples[language]
     }
 
     return (
@@ -147,67 +258,31 @@ int main() {
                     <div>API Endpoint Information</div>
                 </ModalHeader>
 
-                <ModalBody>
-                    <p>Use this endpoint to run your workflow in a non-blocking way:</p>
-                    <div className="flex items-center gap-2 w-full">
-                        <SyntaxHighlighter
-                            language="bash"
-                            style={oneDark}
-                            customStyle={{
-                                margin: 0,
-                                borderRadius: '8px',
-                                padding: '12px',
-                                flex: 1,
-                            }}
-                        >
-                            {getApiEndpoint()}
-                        </SyntaxHighlighter>
-                        <Tooltip content="Copy to clipboard">
-                            <Button
-                                isIconOnly
-                                variant="light"
-                                size="sm"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(getApiEndpoint())
-                                }}
-                            >
-                                <Icon icon="solar:copy-linear" width={20} />
-                            </Button>
-                        </Tooltip>
-                    </div>
-                    <p className="mt-2">Send a POST request with the following body:</p>
-                    <div className="flex items-center gap-2 w-full">
-                        <SyntaxHighlighter
-                            language="json"
-                            style={oneDark}
-                            customStyle={{
-                                margin: 0,
-                                borderRadius: '8px',
-                                padding: '12px',
-                                flex: 1,
-                            }}
-                        >
-                            {JSON.stringify(exampleRequestBody, null, 2)}
-                        </SyntaxHighlighter>
-                        <Tooltip content="Copy to clipboard">
-                            <Button
-                                isIconOnly
-                                variant="light"
-                                size="sm"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(JSON.stringify(exampleRequestBody, null, 2))
-                                }}
-                            >
-                                <Icon icon="solar:copy-linear" width={20} />
-                            </Button>
-                        </Tooltip>
-                    </div>
-
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <p>Code example:</p>
+                <ModalBody className="max-h-[60vh] overflow-y-auto">
+                    <div className="flex flex-col space-y-4">
+                        <div className="flex items-center gap-2">
+                            <span>API call type:</span>
                             <Select
-                                label="Language"
+                                label=""
+                                className="max-w-[150px]"
+                                size="sm"
+                                variant="bordered"
+                                value={apiCallType}
+                                onChange={(e) => setApiCallType(e.target.value as 'blocking' | 'non-blocking')}
+                                defaultSelectedKeys={['non-blocking']}
+                            >
+                                <SelectItem key="blocking" value="blocking">
+                                    Blocking
+                                </SelectItem>
+                                <SelectItem key="non-blocking" value="non-blocking">
+                                    Non-blocking
+                                </SelectItem>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span>Language:</span>
+                            <Select
+                                label=""
                                 className="max-w-[150px]"
                                 size="sm"
                                 variant="bordered"
@@ -215,13 +290,17 @@ int main() {
                                 onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguages)}
                                 defaultSelectedKeys={['python']}
                             >
-                                {Object.keys(codeExamples).map((lang) => (
+                                {['shell', 'python', 'javascript', 'typescript', 'rust', 'java', 'cpp'].map((lang) => (
                                     <SelectItem key={lang} value={lang}>
                                         {lang.charAt(0).toUpperCase() + lang.slice(1)}
                                     </SelectItem>
                                 ))}
                             </Select>
                         </div>
+                    </div>
+
+                    <div className="mt-4">
+                        <p className="mb-2">Example request:</p>
                         <div className="flex items-center gap-2 w-full">
                             <SyntaxHighlighter
                                 language={selectedLanguage}
@@ -233,7 +312,7 @@ int main() {
                                     flex: 1,
                                 }}
                             >
-                                {codeExamples[selectedLanguage]}
+                                {getCodeExample(selectedLanguage)}
                             </SyntaxHighlighter>
                             <Tooltip content="Copy to clipboard">
                                 <Button
@@ -241,7 +320,7 @@ int main() {
                                     variant="light"
                                     size="sm"
                                     onClick={() => {
-                                        navigator.clipboard.writeText(codeExamples[selectedLanguage])
+                                        navigator.clipboard.writeText(getCodeExample(selectedLanguage))
                                     }}
                                 >
                                     <Icon icon="solar:copy-linear" width={20} />
@@ -249,6 +328,38 @@ int main() {
                             </Tooltip>
                         </div>
                     </div>
+
+                    {apiCallType === 'non-blocking' && (
+                        <div className="mt-4">
+                            <p className="mb-2">Check run status:</p>
+                            <div className="flex items-center gap-2 w-full">
+                                <SyntaxHighlighter
+                                    language={selectedLanguage}
+                                    style={oneDark}
+                                    customStyle={{
+                                        margin: 0,
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        flex: 1,
+                                    }}
+                                >
+                                    {getStatusCheckExample(selectedLanguage)}
+                                </SyntaxHighlighter>
+                                <Tooltip content="Copy to clipboard">
+                                    <Button
+                                        isIconOnly
+                                        variant="light"
+                                        size="sm"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(getStatusCheckExample(selectedLanguage))
+                                        }}
+                                    >
+                                        <Icon icon="solar:copy-linear" width={20} />
+                                    </Button>
+                                </Tooltip>
+                            </div>
+                        </div>
+                    )}
                 </ModalBody>
                 <ModalFooter>
                     <Button color="primary" onPress={() => onOpenChange(false)}>

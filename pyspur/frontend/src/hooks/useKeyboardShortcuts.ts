@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { addNode, FlowWorkflowNode } from '../store/flowSlice'
+import { addNode, setNodes } from '../store/flowSlice'
+import { FlowWorkflowNode } from '@/types/api_types/nodeTypeSchemas'
 import { createNode } from '../utils/nodeFactory'
 import { AppDispatch } from '../store/store' // Import AppDispatch type
 import { NodeTypes } from '@xyflow/react'
@@ -11,7 +12,8 @@ export const useKeyboardShortcuts = (
     nodes: FlowWorkflowNode[],
     nodeTypes: NodeTypes,
     nodeTypeConfig: FlowWorkflowNodeTypesByCategory,
-    dispatch: AppDispatch
+    dispatch: AppDispatch,
+    handleLayout?: () => void
 ) => {
     const [copiedNode, setCopiedNode] = useState<FlowWorkflowNode | null>(null)
 
@@ -36,12 +38,18 @@ export const useKeyboardShortcuts = (
                             dispatch(addNode({ node: newNode.node }))
                         }
                         break
+                    case 'i': // CMD + I or CTRL + I
+                        if (handleLayout) {
+                            event.preventDefault()
+                            handleLayout()
+                        }
+                        break
                     default:
                         break
                 }
             }
         },
-        [selectedNodeID, copiedNode, nodes, dispatch]
+        [selectedNodeID, copiedNode, nodes, dispatch, handleLayout]
     )
 
     useEffect(() => {

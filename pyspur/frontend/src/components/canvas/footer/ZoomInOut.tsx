@@ -1,8 +1,7 @@
 import React from 'react'
 import { useReactFlow, useViewport } from '@xyflow/react'
-import { Card, Button } from '@nextui-org/react'
+import { Card, Button, Tooltip } from '@heroui/react'
 import { Icon } from '@iconify/react'
-import TipPopup from './TipPopUp'
 
 const ZoomInOut: React.FC = () => {
     const { zoomIn, zoomOut } = useReactFlow()
@@ -21,17 +20,33 @@ const ZoomInOut: React.FC = () => {
     return (
         <Card className="flex items-center justify-center shadow-none bg-background">
             <div className="zoom-controls flex items-center gap-2">
-                <TipPopup title="Zoom Out" shortcuts={['ctrl', '-']}>
+                <Tooltip
+                    content={
+                        <div className="px-1 py-2">
+                            <div className="text-small font-bold">Zoom Out</div>
+                            <div className="text-tiny">Press <kbd>{navigator.platform.includes('Mac') ? '⌘ CMD' : 'Ctrl'}</kbd>+<kbd>-</kbd></div>
+                        </div>
+                    }
+                    placement="bottom"
+                >
                     <Button isIconOnly variant="light" onClick={handleZoomOut}>
-                        <Icon icon="solar:minimize-square-linear" width={16} className="text-default-600" />
+                        <Icon icon="solar:minimize-square-linear" width={16} className="text-foreground" />
                     </Button>
-                </TipPopup>
-                <span className="text-sm text-default-600">{(zoom * 100).toFixed(0)}%</span>
-                <TipPopup title="Zoom In" shortcuts={['ctrl', '+']}>
+                </Tooltip>
+                <span className="text-sm text-foreground">{(zoom * 100).toFixed(0)}%</span>
+                <Tooltip
+                    content={
+                        <div className="px-1 py-2">
+                            <div className="text-small font-bold">Zoom In</div>
+                            <div className="text-tiny">Press <kbd>{navigator.platform.includes('Mac') ? '⌘ CMD' : 'Ctrl'}</kbd>+<kbd>+</kbd></div>
+                        </div>
+                    }
+                    placement="bottom"
+                >
                     <Button isIconOnly variant="light" onClick={handleZoomIn}>
-                        <Icon icon="solar:maximize-square-linear" width={16} className="text-default-600" />
+                        <Icon icon="solar:maximize-square-linear" width={16} className="text-foreground" />
                     </Button>
-                </TipPopup>
+                </Tooltip>
             </div>
         </Card>
     )
