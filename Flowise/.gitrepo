@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/FlowiseAI/Flowise.git
 	branch = main
-	commit = 22801591dae59418050055d4ca5799c8ccb65b58
-	parent = bc8b0627e61c2e88cf05b3245eb10d910a7d700b
+	commit = 3290798d4b45930ab47bff56c671a3c734842519
+	parent = 0e0f4bf803b4560db94641054f2d16a02086c8e3
 	method = merge
 	cmdver = 0.4.9
