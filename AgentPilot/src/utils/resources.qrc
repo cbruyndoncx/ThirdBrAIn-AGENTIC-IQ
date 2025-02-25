@@ -33,6 +33,7 @@
         <file>resources/icon-user.png</file>
         <file>resources/icon-user-solid.png</file>
         <file>resources/icon-tool.png</file>
+        <file>resources/icon-tool-small.png</file>
         <file>resources/icon-globe.png</file>
         <file>resources/icon-filter.png</file>
         <file>resources/icon-filter-filled.png</file>
@@ -46,6 +47,7 @@
         <file>resources/icon-settings-solid.png</file>
         <file>resources/icon-agent-group.png</file>
         <file>resources/icon-workspace.png</file>
+        <file>resources/icon-workspace-large.png</file>
         <file>resources/icon-finetune.png</file>
         <file>resources/icon-eye.png</file>
         <file>resources/icon-eye-cross.png</file>
@@ -58,5 +60,34 @@
         <file>resources/icon-expand.png</file>
         <file>resources/icon-wand.png</file>
         <file>resources/icon-blocks.png</file>
+        <file>resources/icon-block.png</file>
+        <file>resources/icon-code.png</file>
+        <file>resources/icon-brain.png</file>
+        <file>resources/icon-parameter.png</file>
+        <file>resources/icon-jigsaw.png</file>
+        <file>resources/icon-jigsaw-solid.png</file>
+        <file>resources/icon-pages.png</file>
+        <file>resources/icon-load.png</file>
+        <file>resources/icon-unload.png</file>
+        <file>resources/icon-expanded.png</file>
+        <file>resources/icon-collapsed.png</file>
+        <file>resources/icon-expanded-solid.png</file>
+        <file>resources/icon-collapsed-solid.png</file>
+        <file>resources/icon-pages-large.png</file>
+        <file>resources/icon-tasks.png</file>
+        <file>resources/icon-tasks-small.png</file>
+        <file>resources/icon-modules.png</file>
+        <file>resources/icon-modules-solid.png</file>
+        <file>resources/icon-oai.png</file>
+        <file>resources/icon-history.png</file>
+        <file>resources/icon-todo.png</file>
+        <file>resources/icon-clock.png</file>
+        <file>resources/icon-edit.png</file>
+        <file>resources/icon-notif.png</file>
+        <file>resources/icon-import.png</file>
+        <file>resources/icon-nuke.png</file>
+        <file>resources/icon-share.png</file>
+        <file>resources/icon-screenshot.png</file>
+        <file>resources/icon-screenshot.png</file>
     </qresource>
 </RCC>

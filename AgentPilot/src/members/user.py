@@ -1,9 +1,8 @@
-from abc import abstractmethod
+from typing import Dict, Any
 
 from PySide6.QtGui import Qt
 
-from src.gui.config import ConfigFields, ConfigPages, ConfigJsonTree, ConfigTabs
-from src.gui.widgets import find_main_widget
+from src.gui.config import ConfigFields, ConfigPages, ConfigTabs
 from src.members.base import Member
 
 
@@ -11,21 +10,18 @@ class User(Member):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.workflow = kwargs.get('workflow')
-        self.config = kwargs.get('config', {})
+        self.config: Dict[str, Any] = kwargs.get('config', {})
+        self.receivable_function = None
 
-    @abstractmethod
     async def run_member(self):
-        """The entry response method for the member."""
-        pass
+        yield 'SYS', 'BREAK'
 
 
 class UserSettings(ConfigPages):
     def __init__(self, parent):
         super().__init__(parent=parent)
-        self.main = find_main_widget(parent)
-        self.member_type = 'user'
-        self.member_id = None
         self.layout.addSpacing(10)
+        self.member_id = None
 
         self.pages = {
             'Info': self.Info_Settings(self),
@@ -37,7 +33,7 @@ class UserSettings(ConfigPages):
             super().__init__(parent=parent)
             self.parent = parent
             self.conf_namespace = 'info'
-            self.alignment = Qt.AlignHCenter
+            self.field_alignment = Qt.AlignHCenter
             self.schema = [
                 {
                     'text': 'Avatar',
@@ -50,12 +46,11 @@ class UserSettings(ConfigPages):
                     'text': 'Name',
                     'type': str,
                     'default': 'You',
-                    'width': 400,
+                    'stretch_x': True,
                     'text_size': 15,
                     'text_alignment': Qt.AlignCenter,
                     'label_position': None,
                     'transparent': True,
-                    # 'fill_width': True,
                 },
             ]
 
@@ -75,6 +70,13 @@ class UserSettings(ConfigPages):
                 self.label_width = 175
                 self.schema = [
                     {
+                        'text': 'Output role',
+                        'type': 'RoleComboBox',
+                        'width': 90,
+                        'tooltip': 'Set the primary output role for this member',
+                        'default': 'user',
+                    },
+                    {
                         'text': 'Output placeholder',
                         'type': str,
                         'tooltip': 'A tag to use this member\'s output from other members system messages',
@@ -84,8 +86,9 @@ class UserSettings(ConfigPages):
                         'text': 'Member description',
                         'type': str,
                         'num_lines': 4,
-                        'width': 320,
+                        'label_position': 'top',
+                        'stretch_x': True,
                         'tooltip': 'A description of the member that can be used by other members (Not implemented yet)',
                         'default': '',
-                    }
+                    },
                 ]

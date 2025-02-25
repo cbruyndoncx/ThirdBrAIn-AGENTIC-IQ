@@ -1,7 +1,6 @@
+import os
 from src.gui.main import launch
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
+os.environ['LITELLM_LOG'] = 'ERROR'
 
 if __name__ == '__main__':
     launch()

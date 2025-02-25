@@ -1,11 +1,14 @@
 import sys
 import time
 import unittest
+import pyautogui
+
+from PySide6.QtGui import Qt
 from PySide6.QtWidgets import QApplication
 from PySide6.QtTest import QTest
 from src.gui.main import Main
+from src.gui.widgets import IconButton
 
-app = None
 
 # TEST LIST
 # - Open app with no internet/
@@ -71,79 +74,78 @@ app = None
 # - Other
 # -   Push/pull buttons
 
-def setUpModule():
-    global app
-    app = QApplication([])
-
-
-def tearDownModule():
-    global app
-    app.quit()
-
 
 class TestApp(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication(sys.argv)
+        cls.main = Main()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up after all tests
+        cls.main.close()
+        cls.app.quit()
+
     def setUp(self):
-        """Initialize before each test."""
-        self.main = Main()
+        self.main.show()
+        self.main.raise_()
+        QTest.qWait(1000)  # Wait for the window to show
 
-    def tearDown(self):
-        """Clean-up after each test."""
-        self.main.close()
+        self.btn_settings = self.main.main_menu.settings_sidebar.page_buttons['Settings']
+        self.page_settings = self.main.main_menu.pages['Settings']
 
-    # region HelperFuncs
-    def click_sidebar_button(self, btn_attr_name):
-        """Click the specified sidebar button."""
-        btn = getattr(self.main.sidebar, btn_attr_name)
-        btn.click()
+    def click_widget(self, widget):
+        x, y = self.get_widget_coords(widget)
+        pyautogui.moveTo(x, y, duration=0.3)
+        QTest.mouseClick(widget, Qt.LeftButton)
+        QTest.qWait(500)
 
-    def find_agent_row(self, agent_name):
-        """Find the row of the specified agent."""
-        for row in range(self.main.page_agents.tree.rowCount()):
-            item = self.main.page_agents.tree.item(row, 3).text()
-            if item == agent_name:
-                return row
-        return None
-    # endregion
+    def goto_page(self, page_name):
+        btn = self.main.main_menu.settings_sidebar.page_buttons.get(page_name, None)
+        page = self.main.main_menu.pages.get(page_name, None)
+        if btn:
+            if not btn.isVisible():
+                btn = None
+                page = None
+        if not btn:
+            btn = self.page_settings.settings_sidebar.page_buttons.get(page_name, None)
+            page = self.page_settings.settings_sidebar.pages.get(page_name, None)
+            if not btn.isVisible():
+                btn = None
+                page = None
+        if not btn:
+            raise ValueError(f'Page {page_name} not found')
 
-    # region UnitTests
-    def test_initial_state(self):
-        """Test the initial state of the app."""
-        self.assertTrue(self.main.isVisible())  # Example test
+        self.click_widget(btn)
+        return page
 
-    def test_agent_page(self):
-        """Test the agent page."""
-        start_time = time.time()  # Start timing
-        self.click_sidebar_button('btn_agents')
-        load_time = time.time() - start_time  # End timing
+    def iterate_button_bar(self, button_bar):
+        for attr_name, obj in button_bar.__dict__.items():
+            if not isinstance(obj, IconButton) or not obj.isVisible() or not obj.isEnabled():
+                continue
+            self.click_widget(obj)
 
-        self.assertTrue(self.main.sidebar.btn_agents.isChecked())
-        self.assertLess(load_time, 0.25, "Loading the agent page took too long.")
+    def get_widget_coords(self, widget):
+        center = widget.rect().center()
+        global_center = widget.mapToGlobal(center)
+        return global_center.x(), global_center.y()
 
-    def test_click_where_agent_is_tupac(self):
-        """Test the agent page."""
-        self.click_sidebar_button('btn_agents')
-        row = self.find_agent_row('Tupac Shakur')
-        if row is not None:
-            self.main.page_agents.tree.setCurrentCell(row, 0)
-            self.assertEqual(self.main.page_agents.tree.currentRow(), row)
-        else:
-            self.fail('Could not find agent row.')
-        # for row in range(self.main.page_agents.table_widget.rowCount()):
-        #     agent_name = self.main.page_agents.table_widget.item(row, 3).text()
-        #     if agent_name == 'Tupac Shakur':
-        #         self.main.page_agents.table_widget.setCurrentCell(row, 0)
-        #         self.assertEqual(self.main.page_agents.table_widget.currentRow(), row)
-        #         break
-    # endregion
+    def test_chat_page(self):
+        page_contexts = self.goto_page('Contexts')
+        self.iterate_button_bar(page_contexts.tree_buttons)
 
-    # def test_add_agent(self):
-    #     """Test adding an agent."""
-    #     self.main.sidebar.btn_agents.click()
-    #     self.main.page_agents.btn_new_agent.click()
-    #     self.assertTrue(self.main.page_agents.btn_new_agent.input_dialog.isVisible())
-    #     # type 'kez'
-    #     QTest.keyClicks(self.main.page_agents.btn_new_agent.input_dialog.edit_agent_name, 'kez')
+        #
+        # # Check UI state
+        # # For example, check if a label text has changed
+        # label = self.window.findChild(QLabel, "yourLabelName")
+        # self.assertEqual(label.text(), "Expected Text")
+        #
+        # # Or check if a widget is visible
+        # widget = self.window.findChild(QWidget, "someWidgetName")
+        # self.assertTrue(widget.isVisible())
+        # endregion
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/jbexta/AgentPilot.git
 	branch = master
-	commit = 5c36aac38d3e615c163d9b96770795cc1f502844
-	parent = 22c30e9c3d71197362346b4c388ff75ad7d93b54
+	commit = 741a3b5ede4c36d31cd8f8af47f84cc0e0b06bc2
+	parent = 79bbd0b60fbc38fb84038b9a6887050352322e7e
 	method = merge
 	cmdver = 0.4.9

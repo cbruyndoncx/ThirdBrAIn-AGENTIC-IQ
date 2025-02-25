@@ -1,10 +1,14 @@
+import json
 import os.path
+import re
 import sqlite3
-import sys
 import threading
 from contextlib import contextmanager
 
+from numpy.core.defchararray import upper
 from packaging import version
+
+from src.utils.helpers import convert_to_safe_case
 
 sql_thread_lock = threading.Lock()
 
@@ -102,7 +106,7 @@ def get_results(query, params=None, return_type='rows', incl_column_names=False)
         return ret_val
 
 
-def get_scalar(query, params=None):
+def get_scalar(query, params=None, return_type='single', load_json=False):
     db_path = get_db_path()
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
@@ -117,22 +121,25 @@ def get_scalar(query, params=None):
 
         if row is None:
             return None
-        return row[0]
+
+        if return_type == 'single':
+            return row[0] if not load_json else json.loads(row[0])
+        elif return_type == 'tuple':
+            return row
 
 
 def check_database_upgrade():
     from src.utils.sql_upgrade import upgrade_script
     db_path = get_db_path()
     if not os.path.isfile(db_path):
-        print("Db path not found: ", db_path)
-        raise Exception('NO_DB')
+        raise Exception(f'No database found in {db_path}. Please make sure `data.db` is located in the same directory as this executable.')
 
-    db_version_str = get_scalar("SELECT value as app_version FROM settings WHERE field = 'app_version'")
+    db_version_str = get_scalar("SELECT value as app_version FROM settings WHERE `field` = 'app_version'")
     db_version = version.parse(db_version_str)
     source_version = list(upgrade_script.versions.keys())[-1]
     source_version = version.parse(source_version)
     if db_version > source_version:
-        raise Exception('OUTDATED_APP')
+        raise Exception('The database originates from a newer version of Agent Pilot. Please download the latest version from github.')
     elif db_version < source_version:
         return db_version
     else:
@@ -154,3 +161,82 @@ def execute_multiple(queries, params_list):
                 raise
             finally:
                 cursor.close()
+
+
+def define_table(table_name):
+    if not table_name:
+        return
+    exists = get_scalar(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+    if exists:
+        return
+
+    create_schema = f"""
+        CREATE TABLE IF NOT EXISTS "{convert_to_safe_case(table_name)}" (
+                "id"	INTEGER,
+                "uuid"	TEXT DEFAULT (
+                    lower(hex(randomblob(4))) || '-' ||
+                    lower(hex(randomblob(2))) || '-' ||
+                    '4' || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                    substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' ||
+                    lower(hex(randomblob(6)))
+                ) UNIQUE,
+                "name"	TEXT NOT NULL DEFAULT '',
+                "kind"	TEXT NOT NULL DEFAULT '',
+                "config"	TEXT NOT NULL DEFAULT '{{}}',
+                "metadata"	TEXT NOT NULL DEFAULT '{{}}',
+                "folder_id"	INTEGER DEFAULT NULL,
+                "pinned"	INTEGER DEFAULT 0,
+                "ordr"	INTEGER DEFAULT 0,
+                PRIMARY KEY("id" AUTOINCREMENT)
+        )
+    """
+    execute(create_schema)
+
+
+def ensure_column_in_tables(tables, column_name, column_type, default_value=None, not_null=False, unique=False, force_tables=None):
+    for table in tables:
+        table_exists = get_scalar(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
+        if not table_exists:
+            continue
+
+        column_cnt = get_scalar(f"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = ?", (column_name,))
+        column_exists = column_cnt > 0
+        if column_exists and table not in (force_tables or []):
+            continue
+
+        def_value = default_value
+        if isinstance(default_value, str) and default_value != 'NULL' and not default_value.startswith('('):
+            def_value = f'"{default_value}"'
+        default_str = f'DEFAULT {def_value}' if def_value else ''
+        not_null_str = 'NOT NULL' if not_null else ''
+        unique_str = 'UNIQUE' if unique else ''
+
+        try:
+            if unique:
+                raise Exception("Unique constraint can't be added like this")
+            execute(f"ALTER TABLE {table} ADD COLUMN `{column_name}` {column_type} {not_null_str} {default_str}")
+            continue
+        except Exception as e:
+            pass
+
+        old_table_create_stmt = get_scalar(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table}'")  # todo dirty
+
+        rebuilt_create_stmt_without_column = ''
+        for line in old_table_create_stmt.split('\n'):
+            if f'"{column_name}"' in line:
+                continue
+            rebuilt_create_stmt_without_column += line + '\n'
+
+        new_create_stmt = rebuilt_create_stmt_without_column.replace('PRIMARY KEY', f'"{column_name}" {column_type} {default_str} {unique_str},\n\t\t\t\tPRIMARY KEY')
+        execute(new_create_stmt.replace(f'CREATE TABLE "{table}"', f'CREATE TABLE "{table}_new"'))
+
+        # insert all data except for the new column
+        old_table_columns = get_results(f"PRAGMA table_info({table})")
+        old_table_columns = [col[1] for col in old_table_columns if (col[1] != column_name or column_exists)]
+        insert_stmt = f"INSERT INTO `{table}_new` (`{'`, `'.join(old_table_columns)}`) SELECT `{'`, `'.join(old_table_columns)}` FROM `{table}`"
+        execute(insert_stmt)
+        execute(f"DROP TABLE `{table}`")
+        execute(f"ALTER TABLE `{table}_new` RENAME TO `{table}`")
+        # execute(f"""
+        #     CREATE TABLE IF NOT EXISTS "{convert_to_safe_case(new_table_name)}" AS SELECT * FROM "{table}"
+        # """)
