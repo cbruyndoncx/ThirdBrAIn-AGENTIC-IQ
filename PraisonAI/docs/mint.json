@@ -54,17 +54,43 @@
       "destination": "/"
     }
   ],
+  "tabs": [
+    {
+        "name": "Documentation",
+        "url": "/index"
+    },
+    {
+        "name": "Examples",
+        "url": "/examples"
+    },
+    {
+        "name": "Agents",
+        "url": "/agents"
+    },
+    {
+        "name": "UI",
+        "url": "/ui"
+    },
+    {
+        "name": "Tools",
+        "url": "/tools"
+    },
+    {
+        "name": "JS",
+        "url": "/js"
+    }
+  ],
   "navigation": [
     {
       "group": "",
       "pages": ["index"]
     },
     {
-      "group": "Getting Started (Code)",
+      "group": "Getting Started",
       "pages": [
-        "code/introduction",
-        "code/installation",
-        "code/quickstart"
+        "introduction",
+        "installation",
+        "quickstart"
       ]
     },
     {
@@ -73,44 +99,43 @@
         "concepts/agents",
         "concepts/tasks",
         "concepts/process",
-        "concepts/tools"
+        "concepts/tools",
+        "concepts/memory",
+        "concepts/knowledge"
       ]
     },
     {
-      "group": "Getting Started (No Code)",
+      "group": "Workflows",
       "pages": [
-        "introduction",
-        "tldr",
-        "installation",
-        "initialise",
-        "run",
-        "auto"
-      ]
-    },
-    {
-      "group": "User Interface",
-      "pages": [
-        "ui/ui",
-        "ui/chat",
-        "ui/code",
-        "ui/realtime"
+        "features/routing",
+        "features/orchestrator-worker",
+        "features/autonomous-workflow",
+        "features/parallelisation",
+        "features/promptchaining",
+        "features/evaluator-optimiser",
+        "features/repetitive"
       ]
     },
     {
       "group": "Features",
       "pages": [
+        "features/cli",
+        "features/autoagents",
+        "features/image-generation",
         "features/selfreflection",
+        "features/rag",
+        "features/reasoning-extract",
         "features/reasoning",
-        "framework/multimodalagents",
+        "features/multimodal",
+        "features/langchain",
         "features/async",
         "features/mini",
+        "features/generate-reasoning",
         "features/codeagent",
+        "features/mathagent",
         "features/structured",
         "features/callbacks",
-        "train",
-        "framework/praisonaiagents",
-        "framework/crewai",
-        "framework/autogen"
+        "features/chat-with-pdf"
       ]
     },
     {
@@ -125,14 +150,81 @@
         "models/anthropic",
         "models/cohere",
         "models/mistral",
+        "models/deepseek",
         "models/other"
       ]
     },
     {
-      "group": "Tools (No Code)",
+      "group": "Examples",
       "pages": [
-        "tools",
+        "examples/examples",
+        "examples/code-analysis",
+        "examples/hackathon-judge",
+        "examples/predictive-maintenance",
+        "examples/emergency-response",
+        "examples/code-review",
+        "examples/fraud-detection",
+        "examples/supply-chain",
+        "examples/healthcare-diagnosis",
+        "examples/customer-service",
+        "examples/smart-city",
+        "examples/multilingual-content",
+        "examples/adaptive-learning",
+        "examples/crypto-validator",
+        "examples/space-mission",
+        "examples/neural-architecture",
+        "examples/defi-market-maker",
+        "examples/medicine-protocol",
+        "examples/climate-impact",
+        "examples/vulnerability-detection",
+        "examples/research-assistant",
+        "examples/quantum-optimiser"
+      ]
+    },
+    {
+      "group": "Agents",
+      "pages": [
+        "agents/agents",
+        "agents/data-analyst",
+        "agents/finance",
+        "agents/image",
+        "agents/image-to-text",
+        "agents/markdown",
+        "agents/planning",
+        "agents/programming",
+        "agents/shopping",
+        "agents/single",
+        "agents/video",
+        "agents/websearch",
+        "agents/wikipedia",
+        "agents/research",
+        "agents/recommendation"
+      ]
+    },
+    {
+      "group": "Tools",
+      "pages": [
+        "tools/tools",
+        "tools/langchain_tools",
+        "tools/duckduckgo_tools",
+        "tools/arxiv_tools",
+        "tools/calculator_tools",
+        "tools/csv_tools",
+        "tools/duckdb_tools",
+        "tools/excel_tools",
+        "tools/file_tools",
+        "tools/json_tools",
+        "tools/newspaper_tools",
+        "tools/pandas_tools",
+        "tools/python_tools",
+        "tools/shell_tools",
+        "tools/spider_tools",
+        "tools/wikipedia_tools",
+        "tools/xml_tools",
+        "tools/yaml_tools",
+        "tools/yfinance_tools",
         "tools/custom",
+        "tools/tools_class",
         "tools/gpt",
         "tools/duckduckgo",
         "tools/langchain",
@@ -143,7 +235,50 @@
         "tools/reddit",
         "tools/you.com",
         "tools/crawl4ai",
-        "tools/mem0"
+        "tools/mem0",
+        "tools/composio",
+        "tools/googlecalendar"
+      ]
+    },
+    {
+      "group": "JavaScript",
+      "pages": [
+        "js/js",
+        "js/typescript",
+        "js/nodejs",
+        "js/typescript-async",
+        "js/development"
+      ]
+    },
+    {
+      "group": "Other Features",
+      "pages": [
+        "train",
+        "framework/crewai",
+        "framework/autogen",
+        "framework/praisonaiagents"
+      ]
+    },
+    {
+      "group": "User Interface",
+      "pages": [
+        "ui/overview",
+        "ui/gradio",
+        {
+          "group": "Streamlit",
+          "icon": "pen-paintbrush",
+          "pages": [
+            "ui/streamlit",
+            "ui/streamlit/code-analysis-streamlit",
+            "ui/streamlit/hackathon-judge-streamlit",
+            "ui/streamlit/ollama-streamlit",
+            "ui/streamlit/deepseek-streamlit",
+            "ui/streamlit/gemini-streamlit"
+          ]
+        },
+        "ui/ui",
+        "ui/chat",
+        "ui/code"
       ]
     },
     {
@@ -159,7 +294,19 @@
         "developers/wrapper-tools",
         "developers/googlecolab",
         "developers/googlecolab-tools",
+        "developers/local-development",
         "deploy"
+      ]
+    },
+    {
+      "group": "Getting Started (No Code)",
+      "pages": [
+        "nocode/introduction",
+        "nocode/tldr",
+        "nocode/installation",
+        "nocode/initialise",
+        "nocode/run",
+        "nocode/auto"
       ]
     },
     {
@@ -168,6 +315,7 @@
         "api/praisonaiagents/index",
         "api/praisonaiagents/agent/agent",
         "api/praisonaiagents/agents/agents",
+        "api/praisonaiagents/agents/autoagents",
         "api/praisonaiagents/task/task",
         "api/praisonaiagents/process/process"
       ]

@@ -1,30 +1,44 @@
 ---
-title: "UI"
-description: "Comprehensive guide to PraisonAI's user interfaces, including Chainlit, Gradio, and Streamlit integrations with step-by-step setup instructions"
-icon: "desktop"
+title: "User Interface"
+sidebarTitle: "UI"
+description: "Interface to Build multi-agent systems with PraisonAI Agent's framework"
+icon: "users"
 ---
 
-<div className="relative w-full aspect-video">
-  <iframe
-    className="absolute top-0 left-0 w-full h-full"
-    src="https://www.youtube.com/embed/tg-ZjNl3OCg"
-    title="YouTube video player"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
-</div>
+## Installation
 
-## Different User Interfaces:
+```bash
+pip install -U "praisonai[ui]"
+```
 
-| Interface | Description | URL |
-|---|---|---|
-| **UI** | Multi Agents such as CrewAI or AutoGen | [https://docs.praison.ai/ui/ui](https://docs.praison.ai/ui/ui) |
-| **Chat** | Chat with 100+ LLMs, single AI Agent | [https://docs.praison.ai/ui/chat](https://docs.praison.ai/ui/chat) |
-| **Code** | Chat with entire Codebase, single AI Agent | [https://docs.praison.ai/ui/code](https://docs.praison.ai/ui/code) |
+## Interface Types
+
+<CardGroup cols={2}>
+  <Card title="Multi-Agent Systems" icon="users">
+    Orchestrate multiple agents with UI framework.
+  </Card>
+</CardGroup>
+
+## Features
+
+Agent orchestration, workflow management, inter-agent communication
+
+## Getting Started
+
+<Steps>
+  <Step title="Install Dependencies">
+    Each interface has its own installation requirements. Follow the specific guide.
+  </Step>
+  <Step title="Create Application">
+    Use the provided examples and templates to build your application.
+  </Step>
+  <Step title="Customize">
+    Add features and styling to match your needs using the interface's components.
+  </Step>
+</Steps>
 
 ## Chainlit
 ```bash
-pip install -U "praisonai[ui]"
 export OPENAI_API_KEY="Enter your API key"
 chainlit create-secret
 export CHAINLIT_AUTH_SECRET=xxxxxxxx
@@ -47,22 +61,6 @@ Add below Variables and required Username/Password
 ```
 CHAINLIT_USERNAME=admin
 CHAINLIT_USERNAME=admin
-```
-
-## Gradio
-```bash
-pip install "praisonai[gradio]"
-export OPENAI_API_KEY="Enter your API key"
-praisonai --ui gradio
-```
-
-## Streamlit
-
-```bash
-git clone https://github.com/leporejoseph/PraisonAi-Streamlit
-cd PraisonAi-Streamlit
-pip install -r requirements.txt
-streamlit run app.py
 ```
 
 ## Using Chainlit (with Pictures)
@@ -103,3 +101,13 @@ streamlit run app.py
 
 ### Manual Model Output
 ![Manual Model Output](../images/ui-step-11.png)
+
+<div className="relative w-full aspect-video">
+  <iframe
+    className="absolute top-0 left-0 w-full h-full"
+    src="https://www.youtube.com/embed/tg-ZjNl3OCg"
+    title="YouTube video player"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
+  ></iframe>
+</div>

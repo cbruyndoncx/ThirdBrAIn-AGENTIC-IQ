@@ -4,11 +4,8 @@ description: "Understanding Agents in PraisonAI"
 icon: "user"
 ---
 
-<Note>
-  Agents are the core building blocks of PraisonAI. Each agent is an autonomous AI entity with specific roles, goals, and capabilities.
-</Note>
-
 # Understanding Agents
+Agents are the core building blocks of PraisonAI. Each agent is an autonomous AI entity with specific roles, goals, and capabilities.
 
 ```mermaid
 graph LR
@@ -19,45 +16,34 @@ graph LR
     Agent2 --> Output([✓ Output])
     Process -.-> Agent1
     
-    %% Styling for main elements
-    style Start fill:#2D3047,stroke:#7C90A0,color:#fff
-    style Output fill:#2D3047,stroke:#7C90A0,color:#fff
-    style Process fill:#5C80BC,stroke:#7C90A0,color:#fff
-    
     %% Define subgraphs for agents and their tasks
-    subgraph Agent1[" "]
+    subgraph Agent1[ ]
         Task1[📋 Task]
         AgentIcon1[🤖 AI Agent]
         Tools1[🔧 Tools]
         
         Task1 --- AgentIcon1
         AgentIcon1 --- Tools1
-        
-        style Task1 fill:#2D3047,stroke:#7C90A0,color:#fff
-        style AgentIcon1 fill:#5C80BC,stroke:#7C90A0,color:#fff
-        style Tools1 fill:#2D3047,stroke:#7C90A0,color:#fff
     end
     
-    subgraph Agent2[" "]
+    subgraph Agent2[ ]
         Task2[📋 Task]
         AgentIcon2[🤖 AI Agent]
         Tools2[🔧 Tools]
         
         Task2 --- AgentIcon2
         AgentIcon2 --- Tools2
-        
-        style Task2 fill:#2D3047,stroke:#7C90A0,color:#fff
-        style AgentIcon2 fill:#5C80BC,stroke:#7C90A0,color:#fff
-        style Tools2 fill:#2D3047,stroke:#7C90A0,color:#fff
     end
-    
-    %% Style for agent containers
-    style Agent1 fill:#1B1F3B,stroke:#7C90A0,color:#fff
-    style Agent2 fill:#1B1F3B,stroke:#7C90A0,color:#fff
-    
-    %% Global styles
-    classDef default fill:#2D3047,stroke:#7C90A0,color:#fff
-    linkStyle default stroke:#7C90A0,stroke-width:2px
+
+    classDef input fill:#8B0000,stroke:#7C90A0,color:#fff
+    classDef process fill:#189AB4,stroke:#7C90A0,color:#fff
+    classDef tools fill:#2E8B57,stroke:#7C90A0,color:#fff
+    classDef transparent fill:none,stroke:none
+
+    class Start,Output,Task1,Task2 input
+    class Process,AgentIcon1,AgentIcon2 process
+    class Tools1,Tools2 tools
+    class Agent1,Agent2 transparent
 ```
 
 ## Key Components
@@ -105,43 +91,190 @@ graph LR
   ```
 </CodeGroup>
 
-## Agent Types
 
 <Steps>
-  <Step title="Basic Agent">
-    - Single-purpose focus
-    - Direct user interaction
-    - Limited tool set
+
+  <Step title="Install PraisonAI">
+    Install the core package:
+    ```bash Terminal
+    pip install praisonaiagents
+    ```
   </Step>
-  <Step title="Specialized Agent">
-    - Domain expertise
-    - Advanced capabilities
-    - Custom tools
+
+  <Step title="Configure Environment">
+    ```bash Terminal
+    export OPENAI_API_KEY=your_openai_key
+    ```
+    Generate your OpenAI API key from [OpenAI](https://platform.openai.com/api-keys)
+    Use other LLM providers like Ollama, Anthropic, Groq, Google, etc. Please refer to the [Models](/models) for more information.
   </Step>
-  <Step title="Collaborative Agent">
-    - Team interaction
-    - Task delegation
-    - Shared context
+
+  <Step title="Create Agent">
+    Create `app.py`:
+<CodeGroup>
+```python Single Agent
+from praisonaiagents import Agent
+
+agent = Agent(instructions="Your are a helpful AI assistant")
+agent.start("Write a movie script about a robot in Mars")
+```
+
+```python Multi Agents
+from praisonaiagents import Agent, PraisonAIAgents
+
+research_agent = Agent(instructions="Research about AI")
+summarise_agent = Agent(instructions="Summarise research agent's findings")
+
+agents = PraisonAIAgents(agents=[research_agent, summarise_agent])
+agents.start()
+```
+</CodeGroup>
+  </Step>
+
+  <Step title="Start Agents">
+    Execute your script:
+    ```bash Terminal
+    python app.py
+    ```
+
+    You should see:
+    - Agent initialization
+    - Agents progress
+    - Final results
+    - Generated report
   </Step>
 </Steps>
 
+## Agent Types
+
+<CardGroup cols={3}>
+  <Card title="Basic Agent" icon="user" iconType="solid">
+    <AccordionGroup>
+      <Accordion title="Overview">
+        Perfect for straightforward tasks and direct interactions
+      </Accordion>
+      <Accordion title="Features">
+        - Single-purpose focus
+        - Direct user interaction
+        - Limited tool set
+        - Ideal for simple tasks
+      </Accordion>
+    </AccordionGroup>
+  </Card>
+
+  <Card title="Specialized Agent" icon="user-gear" iconType="solid">
+    <AccordionGroup>
+      <Accordion title="Overview">
+        Experts in specific domains with advanced capabilities
+      </Accordion>
+      <Accordion title="Features">
+        - Domain expertise
+        - Advanced capabilities
+        - Custom tools
+        - Deep knowledge base
+      </Accordion>
+    </AccordionGroup>
+  </Card>
+
+  <Card title="Collaborative Agent" icon="users" iconType="solid">
+    <AccordionGroup>
+      <Accordion title="Overview">
+        Designed for team-based operations and complex workflows
+      </Accordion>
+      <Accordion title="Features">
+        - Team interaction
+        - Task delegation
+        - Shared context
+        - Coordinated actions
+      </Accordion>
+    </AccordionGroup>
+  </Card>
+</CardGroup>
+
 ## Best Practices
 
-<Warning>
-  Always implement proper error handling and resource management in your agent configurations.
-</Warning>
+<Note>
+Always implement proper error handling and resource management in your agent configurations.
+</Note>
 
-### Agent Design
-1. Clear role definition
-2. Specific, measurable goals
-3. Relevant tool selection
-4. Appropriate memory configuration
+<CardGroup cols={2}>
+  <Card title="Agent Design" icon="compass-drafting" iconType="solid">
+    <Steps>
+      <Step title="Role Definition">
+        Define clear, specific roles for each agent
+      </Step>
+      <Step title="Goal Setting">
+        Set specific, measurable goals
+      </Step>
+      <Step title="Tool Selection">
+        Choose relevant tools for the task
+      </Step>
+      <Step title="Memory Setup">
+        Configure appropriate memory settings
+      </Step>
+    </Steps>
+  </Card>
 
-### Agent Interaction
-1. Clear communication protocols
-2. Defined delegation rules
-3. Error handling mechanisms
-4. Resource management
+  <Card title="Agent Interaction" icon="network-wired" iconType="solid">
+    <Steps>
+      <Step title="Communication">
+        Establish clear communication protocols
+      </Step>
+      <Step title="Delegation">
+        Define explicit delegation rules
+      </Step>
+      <Step title="Error Handling">
+        Implement robust error handling
+      </Step>
+      <Step title="Resource Management">
+        Set up efficient resource allocation
+      </Step>
+    </Steps>
+  </Card>
+</CardGroup>
+
+## Async Capabilities
+
+<CardGroup cols={1}>
+  <Card title="Key Features" icon="bolt" iconType="solid">
+    <Tabs>
+      <Tab title="Async Support">
+        ```python
+        async def main():
+            agent = Agent(name="AsyncAgent")
+            result = await agent.aprocess_task()
+        ```
+        - Full async/await support
+        - Non-blocking operations
+        - Enhanced performance
+      </Tab>
+      
+      <Tab title="Parallel Execution">
+        ```python
+        async def parallel_tasks():
+            tasks = [agent1.task(), agent2.task()]
+            results = await asyncio.gather(*tasks)
+        ```
+        - Parallel task execution
+        - Efficient resource usage
+        - Improved throughput
+      </Tab>
+      
+      <Tab title="Integration">
+        ```python
+        @agent.async_tool
+        async def custom_tool():
+            async with aiohttp.ClientSession() as session:
+                # Async operations
+                pass
+        ```
+        - Async tool integration
+        - Callback support
+        - Mixed sync/async operations
+      </Tab>
+    </Tabs>
+  </Card>
+</CardGroup>
 
 ## Advanced Features
 

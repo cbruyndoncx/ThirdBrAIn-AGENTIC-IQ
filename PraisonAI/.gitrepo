@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/MervinPraison/PraisonAI.git
 	branch = main
-	commit = 1c9f16f530b791ad188a29dab02d05df77665b02
-	parent = fa4e6c2ac0357312d6acac1a568d7fcd8706fdc5
+	commit = 38987f3371307416539c1c9ddbc33bdd23c1e1ae
+	parent = e9def31fde691ebbea2643431026594600e92d8f
 	method = merge
 	cmdver = 0.4.9

@@ -1,64 +1,134 @@
 ---
-title: "Installation"
-description: "Guide for installing PraisonAI and its various components including framework support and additional features"
-icon: "download"
+title: Installation
+description: Set up PraisonAI in your development environment
+icon: download
 ---
 
-## Basic Installation
-```bash
+<RequestExample>
+```bash Code
+pip install praisonaiagents
+```
+```bash No Code
 pip install praisonai
 ```
-
-## Framework-specific Installation
-
-### PraisonAI Agents Support (Default)
-
-```bash
-pip install praisonai
-``` 
-
-### CrewAI Support
-```bash
-pip install "praisonai[crewai]"
+```bash JavaScript
+npm install praisonai
 ```
+</RequestExample>
 
-Includes:
-- CrewAI framework
-- PraisonAI tools integration
-- Task delegation capabilities
-- Sequential and parallel task execution
+<Note>
+  **Requirements**
+  
+  - Python 3.10 or higher
+  - pip package manager
+  - Virtual environment (recommended)
+</Note>
 
-### AutoGen Support
-```bash
-pip install "praisonai[autogen]"
-```
+# Installing PraisonAI
 
-Includes:
-- AutoGen framework
-- PraisonAI tools integration
-- Multi-agent conversation capabilities
-- Code execution environment
+Follow these steps to set up PraisonAI in your development environment.
+<Tabs>
+  <Tab title="Code">
 
-### Both Frameworks
-```bash
-pip install "praisonai[crewai,autogen]"
-```
+    <Steps>
+      <Step title="Create Virtual Environment (Optional)">
+        First, create and activate a virtual environment:
+        <CodeGroup>
+        ```bash Mac/Linux
+        python -m venv praisonai-env
+        source praisonai-env/bin/activate
+        ```
 
-## Additional Features
+        ```bash Windows
+        python -m venv praisonai-env
+        .\praisonai-env\Scripts\activate
+        ```
+        </CodeGroup>
+      </Step>
 
-```bash
-# UI support
-pip install "praisonai[ui]"
+      <Step title="Install PraisonAI Agents">
+        Install the core PraisonAI Package:
+        ```bash Terminal
+        pip install praisonaiagents
+        ```
+      </Step>
 
-# Chat interface
-pip install "praisonai[chat]"
+      <Step title="Configure Environment">
+        Set your OpenAI API key as an environment variable in your terminal:
+  ```bash Terminal
+  export OPENAI_API_KEY=your_openai_key
+  ```
+      </Step>
 
-# Code interface
-pip install "praisonai[code]"
+    </Steps>
+  </Tab>
+  <Tab title="No Code">
 
-# Realtime voice interaction
-pip install "praisonai[realtime]"
+    <Steps>
+        <Step title="Create Virtual Environment (Optional)">
+        First, create and activate a virtual environment:
+        <CodeGroup>
+        ```bash Mac/Linux
+        python -m venv praisonai-env
+        source praisonai-env/bin/activate
+        ```
 
-# Call feature
-pip install "praisonai[call]"
-```
+        ```bash Windows
+        python -m venv praisonai-env
+        .\praisonai-env\Scripts\activate
+        ```
+        </CodeGroup>
+      </Step>
+        <Step title="Install PraisonAI">
+            Install the PraisonAI package:
+            ```bash
+            pip install praisonai
+            ```
+        </Step>
+        <Step title="Set API Key">
+            Set your OpenAI API key as an environment variable in your terminal:
+            ```bash
+            export OPENAI_API_KEY=your_openai_key
+            ```
+        </Step>
+    </Steps>
+  </Tab>
+  <Tab title="JavaScript">
+    <Steps>
+        <Step title="Install PraisonAI">
+            Install the PraisonAI package:
+            ```bash
+            npm install praisonai
+            ```
+        </Step>
+        <Step title="Set API Key">
+            Set your OpenAI API key as an environment variable in your terminal:
+            ```bash
+            export OPENAI_API_KEY=your_openai_key
+            ```
+        </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+Generate your OpenAI API key from [OpenAI](https://platform.openai.com/api-keys)
+You can also use other LLM providers like Anthropic, Google, etc. Please refer to the [Models](/models) for more information.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start Guide"
+    icon="bolt"
+    href="/code/quickstart"
+  >
+    Build your first AI agent
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/praisonaiagents/index"
+  >
+    Explore the API documentation
+  </Card>
+</CardGroup> 
