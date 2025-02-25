@@ -2,7 +2,7 @@
 
 Thanks for checking out AgentOps. We're building tools to help developers like you make AI agents that actually work reliably. If you've ever tried to build an agent system, you know the pain - they're a nightmare to debug, impossible to monitor, and when something goes wrong... good luck figuring out why.
 
-We created AgentOps to solve these headaches, and we'd love your help making it even better. Our SDK hooks into all the major Python frameworks (AutoGen, CrewAI, LangChain) and LLM providers (OpenAI, Anthropic, Cohere, etc.) to give you visibility into what your agents are actually doing.
+We created AgentOps to solve these headaches, and we'd love your help making it even better. Our SDK hooks into all the major Python frameworks (AG2, CrewAI, LangChain) and LLM providers (OpenAI, Anthropic, Cohere, etc.) to give you visibility into what your agents are actually doing.
 
 ## How You Can Help
 
@@ -108,7 +108,6 @@ We use the following testing packages:
 - `pytest-mock`: Mocking functionality
 - `pyfakefs`: Mock filesystem operations
 - `requests_mock==1.11.0`: Mock HTTP requests
-- `tach~=0.9`: Performance testing and dependency tracking to prevent circular dependencies
 
 ### Using Tox
 
@@ -216,15 +215,6 @@ This will:
    - Sanitize sensitive information
    - Update cassettes when API changes
 
-5. **Performance Testing**:
-   ```python
-   from tach import Tach
-
-   def test_performance():
-       with Tach('operation_name'):
-           perform_operation()
-   ```
-
 ### CI Testing Strategy
 
 We use Jupyter notebooks as integration tests for LLM providers. This approach:
@@ -274,10 +264,10 @@ We use Jupyter notebooks as integration tests for LLM providers. This approach:
 
 The `agentops/llms/` directory contains provider implementations. Each provider must:
 
-1. **Inherit from InstrumentedProvider**:
+1. **Inherit from BaseProvider**:
    ```python
    @singleton
-   class NewProvider(InstrumentedProvider):
+   class NewProvider(BaseProvider):
        def __init__(self, client):
            super().__init__(client)
            self._provider_name = "ProviderName"

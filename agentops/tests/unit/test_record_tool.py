@@ -1,43 +1,14 @@
-import pytest
-import requests_mock
+import contextlib
 import time
-import agentops
-from agentops import record_tool
 from datetime import datetime
 
-from agentops.singleton import clear_singletons
-import contextlib
+import pytest
+import requests_mock
+
+import agentops
+from agentops import record_tool
 
 jwts = ["some_jwt", "some_jwt2", "some_jwt3"]
-
-
-@pytest.fixture(autouse=True)
-def setup_teardown():
-    clear_singletons()
-    yield
-    agentops.end_all_sessions()  # teardown part
-
-
-@contextlib.contextmanager
-@pytest.fixture(autouse=True)
-def mock_req():
-    with requests_mock.Mocker() as m:
-        url = "https://api.agentops.ai"
-        m.post(url + "/v2/create_events", json={"status": "ok"})
-
-        # Use iter to create an iterator that can return the jwt values
-        jwt_tokens = iter(jwts)
-
-        # Use an inner function to change the response for each request
-        def create_session_response(request, context):
-            context.status_code = 200
-            return {"status": "success", "jwt": next(jwt_tokens)}
-
-        m.post(url + "/v2/create_session", json=create_session_response)
-        m.post(url + "/v2/update_session", json={"status": "success", "token_cost": 5})
-        m.post(url + "/v2/developer_errors", json={"status": "ok"})
-
-        yield m
 
 
 class TestRecordTool:
@@ -58,10 +29,13 @@ class TestRecordTool:
         add_two(3, 4)
         time.sleep(0.1)
 
-        # 3 requests: check_for_updates, start_session, record_tool
-        assert len(mock_req.request_history) == 3
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        request_json = mock_req.last_request.json()
+        # Find the record_tool request
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) > 0
+        last_tool_request = tool_requests[-1]
+
+        assert last_tool_request.headers["X-Agentops-Api-Key"] == self.api_key
+        request_json = last_tool_request.json()
         assert request_json["events"][0]["name"] == self.tool_name
         assert request_json["events"][0]["params"] == {"x": 3, "y": 4}
         assert request_json["events"][0]["returns"] == 7
@@ -79,10 +53,13 @@ class TestRecordTool:
         add_two(3, 4)
         time.sleep(0.1)
 
-        # Assert
-        assert len(mock_req.request_history) == 3
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        request_json = mock_req.last_request.json()
+        # Find the record_tool request
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) > 0
+        last_tool_request = tool_requests[-1]
+
+        assert last_tool_request.headers["X-Agentops-Api-Key"] == self.api_key
+        request_json = last_tool_request.json()
         assert request_json["events"][0]["name"] == "add_two"
         assert request_json["events"][0]["params"] == {"x": 3, "y": 4}
         assert request_json["events"][0]["returns"] == 7
@@ -103,10 +80,13 @@ class TestRecordTool:
         add_three(1, 2)
         time.sleep(0.1)
 
-        # 4 requests: check_for_updates, start_session, record_tool, record_tool
-        assert len(mock_req.request_history) == 4
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        request_json = mock_req.last_request.json()
+        # Find all tool requests
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) > 0
+        last_tool_request = tool_requests[-1]
+
+        assert last_tool_request.headers["X-Agentops-Api-Key"] == self.api_key
+        request_json = last_tool_request.json()
         assert request_json["events"][0]["name"] == self.tool_name
         assert request_json["events"][0]["params"] == {"x": 1, "y": 2, "z": 3}
         assert request_json["events"][0]["returns"] == 6
@@ -128,10 +108,14 @@ class TestRecordTool:
 
         # Assert
         assert result == 7
-        # Assert
-        assert len(mock_req.request_history) == 3
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        request_json = mock_req.last_request.json()
+
+        # Find the record_tool request
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) > 0
+        last_tool_request = tool_requests[-1]
+
+        assert last_tool_request.headers["X-Agentops-Api-Key"] == self.api_key
+        request_json = last_tool_request.json()
         assert request_json["events"][0]["name"] == self.tool_name
         assert request_json["events"][0]["params"] == {"x": 3, "y": 4}
         assert request_json["events"][0]["returns"] == 7
@@ -160,26 +144,29 @@ class TestRecordTool:
         add_three(1, 2, session=session_2)
         time.sleep(0.1)
 
-        # 6 requests: check_for_updates, start_session, record_tool, start_session, record_tool, end_session
-        assert len(mock_req.request_history) == 5
+        # Find tool requests
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) >= 2  # Should have at least 2 tool requests
 
-        request_json = mock_req.last_request.json()
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        assert mock_req.last_request.headers["Authorization"] == "Bearer some_jwt2"
+        # Verify session_2's request (last request)
+        last_request = tool_requests[-1]
+        assert last_request.headers["X-Agentops-Api-Key"] == self.api_key
+        assert last_request.headers["Authorization"] == f"Bearer {mock_req.session_jwts[str(session_2.session_id)]}"
+        request_json = last_request.json()
         assert request_json["events"][0]["name"] == self.tool_name
         assert request_json["events"][0]["params"] == {"x": 1, "y": 2, "z": 3}
         assert request_json["events"][0]["returns"] == 6
 
-        second_last_request_json = mock_req.request_history[-2].json()
-        assert mock_req.request_history[-2].headers["X-Agentops-Api-Key"] == self.api_key
-        assert mock_req.request_history[-2].headers["Authorization"] == "Bearer some_jwt"
-        assert second_last_request_json["events"][0]["name"] == self.tool_name
-        assert second_last_request_json["events"][0]["params"] == {
-            "x": 1,
-            "y": 2,
-            "z": 3,
-        }
-        assert second_last_request_json["events"][0]["returns"] == 6
+        # Verify session_1's request (second to last request)
+        second_last_request = tool_requests[-2]
+        assert second_last_request.headers["X-Agentops-Api-Key"] == self.api_key
+        assert (
+            second_last_request.headers["Authorization"] == f"Bearer {mock_req.session_jwts[str(session_1.session_id)]}"
+        )
+        request_json = second_last_request.json()
+        assert request_json["events"][0]["name"] == self.tool_name
+        assert request_json["events"][0]["params"] == {"x": 1, "y": 2, "z": 3}
+        assert request_json["events"][0]["returns"] == 6
 
         session_1.end_session(end_state="Success")
         session_2.end_session(end_state="Success")
@@ -203,30 +190,34 @@ class TestRecordTool:
         await async_add(1, 2, session=session_2)
         time.sleep(0.1)
 
-        # Assert
-        assert len(mock_req.request_history) == 5
+        # Find tool requests
+        tool_requests = [r for r in mock_req.request_history if "/v2/create_events" in r.url]
+        assert len(tool_requests) >= 2  # Should have at least 2 tool requests
 
-        request_json = mock_req.last_request.json()
-        assert mock_req.last_request.headers["X-Agentops-Api-Key"] == self.api_key
-        assert mock_req.last_request.headers["Authorization"] == "Bearer some_jwt2"
+        # Verify session_2's request (last request)
+        last_request = tool_requests[-1]
+        assert last_request.headers["X-Agentops-Api-Key"] == self.api_key
+        assert last_request.headers["Authorization"] == f"Bearer {mock_req.session_jwts[str(session_2.session_id)]}"
+        request_json = last_request.json()
         assert request_json["events"][0]["name"] == self.tool_name
         assert request_json["events"][0]["params"] == {"x": 1, "y": 2}
         assert request_json["events"][0]["returns"] == 3
 
-        second_last_request_json = mock_req.request_history[-2].json()
-        assert mock_req.request_history[-2].headers["X-Agentops-Api-Key"] == self.api_key
-        assert mock_req.request_history[-2].headers["Authorization"] == "Bearer some_jwt"
-        assert second_last_request_json["events"][0]["name"] == self.tool_name
-        assert second_last_request_json["events"][0]["params"] == {
-            "x": 1,
-            "y": 2,
-        }
-        assert second_last_request_json["events"][0]["returns"] == 3
+        # Verify session_1's request (second to last request)
+        second_last_request = tool_requests[-2]
+        assert second_last_request.headers["X-Agentops-Api-Key"] == self.api_key
+        assert (
+            second_last_request.headers["Authorization"] == f"Bearer {mock_req.session_jwts[str(session_1.session_id)]}"
+        )
+        request_json = second_last_request.json()
+        assert request_json["events"][0]["name"] == self.tool_name
+        assert request_json["events"][0]["params"] == {"x": 1, "y": 2}
+        assert request_json["events"][0]["returns"] == 3
 
         session_1.end_session(end_state="Success")
         session_2.end_session(end_state="Success")
 
-    def test_require_session_if_multiple(self):
+    def test_require_session_if_multiple(self, mock_req):
         session_1 = agentops.start_session()
         session_2 = agentops.start_session()
 

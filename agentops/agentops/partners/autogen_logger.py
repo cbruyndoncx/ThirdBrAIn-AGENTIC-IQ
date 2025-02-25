@@ -11,7 +11,7 @@ from openai.types.chat import ChatCompletion
 
 from autogen.logger.base_logger import BaseLogger, LLMConfig
 
-from agentops.enums import EndState
+from agentops.session import EndState
 from agentops.helpers import get_ISO_time
 
 from agentops import LLMEvent, ToolEvent, ActionEvent
@@ -92,7 +92,7 @@ class AutogenLogger(BaseLogger):
         event.function = function  # TODO: this is not a parameter
         event.params = args
         event.returns = returns
-        event.name = getattr(function, "_name")
+        event.name = getattr(function, "__name__")
         agentops.record(event)
 
     def log_new_wrapper(

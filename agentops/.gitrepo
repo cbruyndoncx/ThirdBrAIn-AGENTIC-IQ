@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/AgentOps-AI/agentops.git
 	branch = main
-	commit = 1ec7784a7e2cf4856648b0a10245ac44f89ec5d1
-	parent = 2266631a28a72d804510de00ecf4ad1ae3a4cfef
+	commit = f60c31dda953aa69094fb0192c8af01e5de373fa
+	parent = 14a3f8c20d881e539ce1220157ce1dad9523e89e
 	method = merge
 	cmdver = 0.4.9

@@ -58,7 +58,7 @@ AgentOps helps developers build, evaluate, and monitor AI agents. From prototype
 | 💸 **LLM Cost Management**            | Track spend with LLM foundation model providers               |
 | 🧪 **Agent Benchmarking**             | Test your agents against 1,000+ evals                         |
 | 🔐 **Compliance and Security**        | Detect common prompt injection and data exfiltration exploits |
-| 🤝 **Framework Integrations**         | Native Integrations with CrewAI, AutoGen, Camel AI, & LangChain         |
+| 🤝 **Framework Integrations**         | Native Integrations with CrewAI, AG2(AutoGen), Camel AI, & LangChain         |
 
 ## Quick Start ⌨️
 
@@ -171,11 +171,11 @@ pip install 'crewai[agentops]'
 - [AgentOps integration example](https://docs.agentops.ai/v1/integrations/crewai)
 - [Official CrewAI documentation](https://docs.crewai.com/how-to/AgentOps-Observability)
 
-### AutoGen 🤖
-With only two lines of code, add full observability and monitoring to Autogen agents. Set an `AGENTOPS_API_KEY` in your environment and call `agentops.init()`
+### AG2 🤖
+With only two lines of code, add full observability and monitoring to AG2 (formerly AutoGen) agents. Set an `AGENTOPS_API_KEY` in your environment and call `agentops.init()`
 
-- [Autogen Observability Example](https://microsoft.github.io/autogen/docs/notebooks/agentchat_agentops)
-- [Autogen - AgentOps Documentation](https://microsoft.github.io/autogen/docs/ecosystem/agentops)
+- [AG2 Observability Example](https://docs.ag2.ai/notebooks/agentchat_agentops)
+- [AG2 - AgentOps Documentation](https://docs.ag2.ai/docs/ecosystem/agentops)
 
 ### Camel AI 🐪
 
@@ -435,7 +435,7 @@ await main()
 
 ### Mistral 〽️
 
-Track agents built with the Anthropic Python SDK (>=0.32.0).
+Track agents built with the Mistral Python SDK (>=0.32.0).
 
 - [AgentOps integration example](./examples/mistral//mistral_example.ipynb)
 - [Official Mistral documentation](https://docs.mistral.ai)
