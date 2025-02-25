@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/frdel/agent-zero.git
 	branch = main
-	commit = 13beedc98e1ef6f15852495b111754134594c701
-	parent = 2023abc6de07a7a1be786a8cfa56c54369edc5fd
+	commit = 04e1f483de83237a325957eb9da9e972b898800f
+	parent = d088ecb6df1686593fd60dc71e75587e944a446a
 	method = merge
 	cmdver = 0.4.9
