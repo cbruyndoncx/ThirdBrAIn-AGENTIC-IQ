@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/aitomatic/openssa.git
 	branch = main
-	commit = c20e0143cfff9318e099c27ebdac90774db1fb5d
-	parent = 989d40372111f415f09afc6110efd90b9e7b1bed
+	commit = bec69a4532a194760b69fd8d9442385e565199bf
+	parent = 25d4368366f80a80529a6000d28d544381ac7f11
 	method = merge
 	cmdver = 0.4.9
