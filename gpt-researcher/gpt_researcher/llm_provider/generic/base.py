@@ -72,6 +72,7 @@ class GenericLLMProvider:
             llm = ChatFireworks(**kwargs)
         elif provider == "ollama":
             _check_pkg("langchain_community")
+            _check_pkg("langchain_ollama")
             from langchain_ollama import ChatOllama
             
             llm = ChatOllama(base_url=os.environ["OLLAMA_BASE_URL"], **kwargs)
@@ -129,6 +130,12 @@ class GenericLLMProvider:
             from langchain_community.chat_models.litellm import ChatLiteLLM
 
             llm = ChatLiteLLM(**kwargs)
+        elif provider == "gigachat":
+            _check_pkg("langchain_gigachat")
+            from langchain_gigachat.chat_models import GigaChat
+
+            kwargs.pop("model", None) # Use env GIGACHAT_MODEL=GigaChat-Max
+            llm = GigaChat(**kwargs)
         else:
             supported = ", ".join(_SUPPORTED_PROVIDERS)
             raise ValueError(

@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/assafelovic/gpt-researcher.git
 	branch = master
-	commit = 079be6758424955ec90cec948b4e4f3892538ef8
-	parent = ff6f37cb8530f62ec01634a100fcb958ff373755
+	commit = a90a19ae00161d2ea0f904cabb5388d60da91ea6
+	parent = 9e4dfa03f924ef932c908347cb85b98079124782
 	method = merge
 	cmdver = 0.4.9

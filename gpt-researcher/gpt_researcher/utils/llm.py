@@ -6,6 +6,7 @@ import logging
 from typing import Optional, Any, Dict
 
 from colorama import Fore, Style
+import os
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 
@@ -28,7 +29,8 @@ async def create_chat_completion(
         stream: Optional[bool] = False,
         websocket: Any | None = None,
         llm_kwargs: Dict[str, Any] | None = None,
-        cost_callback: callable = None
+        cost_callback: callable = None,
+        reasoning_effort: Optional[str] = "low"
 ) -> str:
     """Create a chat completion using the OpenAI API
     Args:
@@ -51,9 +53,23 @@ async def create_chat_completion(
             f"Max tokens cannot be more than 16,000, but got {max_tokens}")
 
     # Get the provider from supported providers
-    provider = get_llm(llm_provider, model=model, temperature=temperature,
-                       max_tokens=max_tokens, **(llm_kwargs or {}))
+    kwargs = {
+        'model': model,
+        **(llm_kwargs or {})
+    }
 
+    if 'o3' in model or 'o1' in model:
+        kwargs['reasoning_effort'] = reasoning_effort
+    else:
+        kwargs['temperature'] = temperature
+        kwargs['max_tokens'] = max_tokens
+
+    if llm_provider == "openai":
+        base_url = os.environ.get("OPENAI_BASE_URL", None)
+        if base_url:
+            kwargs['openai_api_base'] = base_url
+
+    provider = get_llm(llm_provider, **kwargs)
     response = ""
     # create response
     for _ in range(10):  # maximum of 10 attempts
@@ -94,17 +110,20 @@ async def construct_subtopics(task: str, data: str, config, subtopics: list = []
                 "format_instructions": parser.get_format_instructions()},
         )
 
-        print(f"\n🤖 Calling {config.smart_llm_model}...\n")
+        kwargs = {
+            'model': config.smart_llm_model,
+            **(config.llm_kwargs or {})
+        }
 
         temperature = config.temperature
-        # temperature = 0 # Note: temperature throughout the code base is currently set to Zero
-        provider = get_llm(
-            config.smart_llm_provider,
-            model=config.smart_llm_model,
-            temperature=temperature,
-            max_tokens=config.smart_token_limit,
-            **config.llm_kwargs,
-        )
+        if 'o3' in config.smart_llm_model or 'o1' in config.smart_llm_model:
+            kwargs['reasoning_effort'] = "high"
+        else:
+            kwargs['temperature'] = config.temperature
+            kwargs['max_tokens'] = config.smart_token_limit
+
+        provider = get_llm(config.smart_llm_provider, **kwargs)
+
         model = provider.llm
 
         chain = prompt | model | parser
