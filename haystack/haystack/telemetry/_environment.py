@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 _IS_DOCKER_CACHE = None
 
 
+def _str_in_any_line_of_file(s: str, path: str) -> bool:
+    with open(path) as f:
+        return any(s in line for line in f)
+
+
 def _in_podman() -> bool:
     """
     Check if the code is running in a Podman container.
@@ -41,7 +46,7 @@ def _has_docker_cgroup_v1() -> bool:
     This only works with cgroups v1.
     """
     path = "/proc/self/cgroup"  # 'self' should be always symlinked to the actual PID
-    return os.path.isfile(path) and any("docker" in line for line in open(path))
+    return os.path.isfile(path) and _str_in_any_line_of_file("docker", path)
 
 
 def _has_docker_cgroup_v2() -> bool:
@@ -51,7 +56,7 @@ def _has_docker_cgroup_v2() -> bool:
     inspired from: https://github.com/jenkinsci/docker-workflow-plugin/blob/master/src/main/java/org/jenkinsci/plugins/docker/workflow/client/DockerClient.java
     """
     path = "/proc/self/mountinfo"  # 'self' should be always symlinked to the actual PID
-    return os.path.isfile(path) and any("/docker/containers/" in line for line in open(path))
+    return os.path.isfile(path) and _str_in_any_line_of_file("/docker/containers/", path)
 
 
 def _is_containerized() -> Optional[bool]:
@@ -84,31 +89,14 @@ def collect_system_specs() -> Dict[str, Any]:
         "os.machine": platform.machine(),
         "python.version": platform.python_version(),
         "hardware.cpus": os.cpu_count(),
+        "libraries.pytest": sys.modules["pytest"].__version__ if "pytest" in sys.modules.keys() else False,
+        "libraries.ipython": sys.modules["ipython"].__version__ if "ipython" in sys.modules.keys() else False,
+        "libraries.colab": sys.modules["google.colab"].__version__ if "google.colab" in sys.modules.keys() else False,
+        # NOTE: The following items are set to default values and never populated.
+        # We keep them just to make sure we don't break telemetry.
         "hardware.gpus": 0,
         "libraries.transformers": False,
         "libraries.torch": False,
         "libraries.cuda": False,
-        "libraries.pytest": sys.modules["pytest"].__version__ if "pytest" in sys.modules.keys() else False,
-        "libraries.ipython": sys.modules["ipython"].__version__ if "ipython" in sys.modules.keys() else False,
-        "libraries.colab": sys.modules["google.colab"].__version__ if "google.colab" in sys.modules.keys() else False,
     }
-
-    # Try to find out transformer's version
-    try:
-        import transformers
-
-        specs["libraries.transformers"] = transformers.__version__
-    except ImportError:
-        pass
-
-    # Try to find out torch's version and info on potential GPU(s)
-    try:
-        import torch
-
-        specs["libraries.torch"] = torch.__version__
-        if torch.cuda.is_available():
-            specs["libraries.cuda"] = torch.version.cuda
-            specs["libraries.gpus"] = torch.cuda.device_count()
-    except ImportError:
-        pass
     return specs

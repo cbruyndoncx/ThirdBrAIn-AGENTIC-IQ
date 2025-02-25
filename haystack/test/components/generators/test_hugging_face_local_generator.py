@@ -397,8 +397,12 @@ class TestHuggingFaceLocalGenerator:
         # "This is ambiguously, but is unrelated."
         input_ids_one = torch.LongTensor([[100, 19, 24621, 11937, 6, 68, 19, 73, 3897, 5]])
         input_ids_two = torch.LongTensor([[100, 19, 73, 24621, 11937]])  # "This is unambiguously"
-        stop_words_criteria = StopWordsCriteria(tokenizer=Mock(spec=PreTrainedTokenizerFast), stop_words=["mock data"])
+
+        mock_tokenizer = Mock(spec=PreTrainedTokenizerFast)
+        mock_tokenizer.pad_token = "<pad>"
+        stop_words_criteria = StopWordsCriteria(tokenizer=mock_tokenizer, stop_words=["mock data"])
         stop_words_criteria.stop_ids = stop_words_id
+
         assert not stop_words_criteria(input_ids_one, scores=None)
         assert stop_words_criteria(input_ids_two, scores=None)
 
@@ -450,8 +454,9 @@ class TestHuggingFaceLocalGenerator:
         assert criteria(generated_text_ids, scores=None) is True
 
     @pytest.mark.integration
-    def test_hf_pipeline_runs_with_our_criteria(self):
+    def test_hf_pipeline_runs_with_our_criteria(self, monkeypatch):
         """Test that creating our own StopWordsCriteria and passing it to a Huggingface pipeline works."""
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
         generator = HuggingFaceLocalGenerator(
             model="google/flan-t5-small", task="text2text-generation", stop_words=["unambiguously"]
         )
@@ -459,3 +464,16 @@ class TestHuggingFaceLocalGenerator:
         results = generator.run(prompt="something that triggers something")
         assert results["replies"] != []
         assert generator.stopping_criteria_list is not None
+
+    @pytest.mark.integration
+    @pytest.mark.flaky(reruns=3, reruns_delay=10)
+    def test_live_run(self, monkeypatch):
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
+        llm = HuggingFaceLocalGenerator(model="Qwen/Qwen2.5-0.5B-Instruct", generation_kwargs={"max_new_tokens": 50})
+        llm.warm_up()
+
+        result = llm.run(prompt="Please create a summary about the following topic: Climate change")
+
+        assert "replies" in result
+        assert isinstance(result["replies"][0], str)
+        assert "climate change" in result["replies"][0].lower()

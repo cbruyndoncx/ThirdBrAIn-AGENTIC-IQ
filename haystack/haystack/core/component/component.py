@@ -13,7 +13,7 @@ All components must follow the contract below. This docstring is the source of t
 
 `@component` decorator
 
-All component classes must be decorated with the `@component` decorator. This allows Canals to discover them.
+All component classes must be decorated with the `@component` decorator. This allows Haystack to discover them.
 
 <hr>
 
@@ -268,9 +268,9 @@ class ComponentMeta(type):
             try:
                 pre_init_hook.in_progress = True
                 named_positional_args = ComponentMeta._positional_to_kwargs(cls, args)
-                assert (
-                    set(named_positional_args.keys()).intersection(kwargs.keys()) == set()
-                ), "positional and keyword arguments overlap"
+                assert set(named_positional_args.keys()).intersection(kwargs.keys()) == set(), (
+                    "positional and keyword arguments overlap"
+                )
                 kwargs.update(named_positional_args)
                 pre_init_hook.callback(cls, kwargs)
                 instance = super().__call__(**kwargs)
@@ -309,8 +309,8 @@ def _component_repr(component: Component) -> str:
     # We're explicitly ignoring the type here because we're sure that the component
     # has the __haystack_input__ and __haystack_output__ attributes at this point
     return (
-        f'{result}\n{getattr(component, "__haystack_input__", "<invalid_input_sockets>")}'
-        f'\n{getattr(component, "__haystack_output__", "<invalid_output_sockets>")}'
+        f"{result}\n{getattr(component, '__haystack_input__', '<invalid_input_sockets>')}"
+        f"\n{getattr(component, '__haystack_output__', '<invalid_output_sockets>')}"
     )
 
 
@@ -329,9 +329,7 @@ class _Component:
     See module's docstring.
 
     Args:
-        class_: the class that Canals should use as a component.
-        serializable: whether to check, at init time, if the component can be saved with
-        `save_pipelines()`.
+        cls: the class that should be used as a component.
 
     Returns:
         A class that can be recognized as a component.
@@ -512,10 +510,12 @@ class _Component:
         # We must explicitly redefine the type of the class to make sure language servers
         # and type checkers understand that the class is of the correct type.
         # mypy doesn't like that we do this though so we explicitly ignore the type check.
-        cls: cls.__name__ = new_class(cls.__name__, cls.__bases__, {"metaclass": ComponentMeta}, copy_class_namespace)  # type: ignore[no-redef]
+        new_cls: cls.__name__ = new_class(
+            cls.__name__, cls.__bases__, {"metaclass": ComponentMeta}, copy_class_namespace
+        )  # type: ignore[no-redef]
 
         # Save the component in the class registry (for deserialization)
-        class_path = f"{cls.__module__}.{cls.__name__}"
+        class_path = f"{new_cls.__module__}.{new_cls.__name__}"
         if class_path in self.registry:
             # Corner case, but it may occur easily in notebooks when re-running cells.
             logger.debug(
@@ -523,15 +523,15 @@ class _Component:
                 new imported from '{new_module_name}'",
                 component=class_path,
                 module_name=self.registry[class_path],
-                new_module_name=cls,
+                new_module_name=new_cls,
             )
-        self.registry[class_path] = cls
-        logger.debug("Registered Component {component}", component=cls)
+        self.registry[class_path] = new_cls
+        logger.debug("Registered Component {component}", component=new_cls)
 
         # Override the __repr__ method with a default one
-        cls.__repr__ = _component_repr
+        new_cls.__repr__ = _component_repr
 
-        return cls
+        return new_cls
 
     def __call__(self, cls: Optional[type] = None):
         # We must wrap the call to the decorator in a function for it to work

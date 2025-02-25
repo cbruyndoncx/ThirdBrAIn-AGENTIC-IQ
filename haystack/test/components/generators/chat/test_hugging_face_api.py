@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+from datetime import datetime
 import os
 from unittest.mock import MagicMock, Mock, patch
 
@@ -23,7 +24,8 @@ from huggingface_hub import (
 from huggingface_hub.utils import RepositoryNotFoundError
 
 from haystack.components.generators.chat.hugging_face_api import HuggingFaceAPIChatGenerator
-from haystack.dataclasses import ChatMessage, Tool, ToolCall
+from haystack.tools import Tool
+from haystack.dataclasses import ChatMessage, ToolCall
 
 
 @pytest.fixture
@@ -217,10 +219,13 @@ class TestHuggingFaceAPIChatGenerator:
         assert init_params["streaming_callback"] is None
         assert init_params["tools"] == [
             {
-                "description": "description",
-                "function": "builtins.print",
-                "name": "name",
-                "parameters": {"x": {"type": "string"}},
+                "type": "haystack.tools.tool.Tool",
+                "data": {
+                    "description": "description",
+                    "function": "builtins.print",
+                    "name": "name",
+                    "parameters": {"x": {"type": "string"}},
+                },
             }
         ]
 
@@ -276,10 +281,13 @@ class TestHuggingFaceAPIChatGenerator:
                         "streaming_callback": None,
                         "tools": [
                             {
-                                "name": "name",
-                                "description": "description",
-                                "parameters": {"x": {"type": "string"}},
-                                "function": "builtins.print",
+                                "type": "haystack.tools.tool.Tool",
+                                "data": {
+                                    "name": "name",
+                                    "description": "description",
+                                    "parameters": {"x": {"type": "string"}},
+                                    "function": "builtins.print",
+                                },
                             }
                         ],
                     },
@@ -387,6 +395,70 @@ class TestHuggingFaceAPIChatGenerator:
         assert len(response["replies"]) > 0
         assert [isinstance(reply, ChatMessage) for reply in response["replies"]]
 
+    def test_run_with_streaming_callback_in_run_method(
+        self, mock_check_valid_model, mock_chat_completion, chat_messages
+    ):
+        streaming_call_count = 0
+
+        # Define the streaming callback function
+        def streaming_callback_fn(chunk: StreamingChunk):
+            nonlocal streaming_call_count
+            streaming_call_count += 1
+            assert isinstance(chunk, StreamingChunk)
+
+        generator = HuggingFaceAPIChatGenerator(
+            api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
+            api_params={"model": "meta-llama/Llama-2-13b-chat-hf"},
+        )
+
+        # Create a fake streamed response
+        # self needed here, don't remove
+        def mock_iter(self):
+            yield ChatCompletionStreamOutput(
+                choices=[
+                    ChatCompletionStreamOutputChoice(
+                        delta=ChatCompletionStreamOutputDelta(content="The", role="assistant"),
+                        index=0,
+                        finish_reason=None,
+                    )
+                ],
+                id="some_id",
+                model="some_model",
+                system_fingerprint="some_fingerprint",
+                created=1710498504,
+            )
+
+            yield ChatCompletionStreamOutput(
+                choices=[
+                    ChatCompletionStreamOutputChoice(
+                        delta=ChatCompletionStreamOutputDelta(content=None, role=None), index=0, finish_reason="length"
+                    )
+                ],
+                id="some_id",
+                model="some_model",
+                system_fingerprint="some_fingerprint",
+                created=1710498504,
+            )
+
+        mock_response = Mock(**{"__iter__": mock_iter})
+        mock_chat_completion.return_value = mock_response
+
+        # Generate text response with streaming callback
+        response = generator.run(chat_messages, streaming_callback=streaming_callback_fn)
+
+        # check kwargs passed to text_generation
+        _, kwargs = mock_chat_completion.call_args
+        assert kwargs == {"stop": [], "stream": True, "max_tokens": 512}
+
+        # Assert that the streaming callback was called twice
+        assert streaming_call_count == 2
+
+        # Assert that the response contains the generated replies
+        assert "replies" in response
+        assert isinstance(response["replies"], list)
+        assert len(response["replies"]) > 0
+        assert [isinstance(reply, ChatMessage) for reply in response["replies"]]
+
     def test_run_fail_with_tools_and_streaming(self, tools, mock_check_valid_model):
         component = HuggingFaceAPIChatGenerator(
             api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
@@ -458,6 +530,7 @@ class TestHuggingFaceAPIChatGenerator:
         not os.environ.get("HF_API_TOKEN", None),
         reason="Export an env var called HF_API_TOKEN containing the Hugging Face token to run this test.",
     )
+    @pytest.mark.flaky(reruns=3, reruns_delay=10)
     def test_live_run_serverless(self):
         generator = HuggingFaceAPIChatGenerator(
             api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
@@ -481,6 +554,7 @@ class TestHuggingFaceAPIChatGenerator:
         not os.environ.get("HF_API_TOKEN", None),
         reason="Export an env var called HF_API_TOKEN containing the Hugging Face token to run this test.",
     )
+    @pytest.mark.flaky(reruns=3, reruns_delay=10)
     def test_live_run_serverless_streaming(self):
         generator = HuggingFaceAPIChatGenerator(
             api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
@@ -496,28 +570,33 @@ class TestHuggingFaceAPIChatGenerator:
         assert isinstance(response["replies"], list)
         assert len(response["replies"]) > 0
         assert [isinstance(reply, ChatMessage) for reply in response["replies"]]
-        assert "usage" in response["replies"][0].meta
-        assert "prompt_tokens" in response["replies"][0].meta["usage"]
-        assert "completion_tokens" in response["replies"][0].meta["usage"]
+
+        response_meta = response["replies"][0].meta
+        assert "completion_start_time" in response_meta
+        assert datetime.fromisoformat(response_meta["completion_start_time"]) <= datetime.now()
+        assert "usage" in response_meta
+        assert "prompt_tokens" in response_meta["usage"]
+        assert "completion_tokens" in response_meta["usage"]
 
     @pytest.mark.integration
     @pytest.mark.skipif(
         not os.environ.get("HF_API_TOKEN", None),
         reason="Export an env var called HF_API_TOKEN containing the Hugging Face token to run this test.",
     )
-    @pytest.mark.integration
+    @pytest.mark.xfail(
+        reason="The Hugging Face API can be unstable and this test may fail intermittently", strict=False
+    )
     def test_live_run_with_tools(self, tools):
         """
         We test the round trip: generate tool call, pass tool message, generate response.
 
-        The model used here (zephyr-7b-beta) is always available and not gated.
-        Even if it does not officially support tools, TGI+HF API make it work.
+        The model used here (Hermes-3-Llama-3.1-8B) is not gated and kept in a warm state.
         """
 
-        chat_messages = [ChatMessage.from_user("What's the weather like in Paris and Munich?")]
+        chat_messages = [ChatMessage.from_user("What's the weather like in Paris?")]
         generator = HuggingFaceAPIChatGenerator(
             api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
-            api_params={"model": "HuggingFaceH4/zephyr-7b-beta"},
+            api_params={"model": "NousResearch/Hermes-3-Llama-3.1-8B"},
             generation_kwargs={"temperature": 0.5},
         )
 

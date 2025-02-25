@@ -467,9 +467,6 @@ class TestSplittingByFunctionOrCharacterRegex:
         Test the from_dict class method of the DocumentSplitter class when a custom splitting function is provided.
         """
 
-        def custom_split(text):
-            return text.split(".")
-
         data = {
             "type": "haystack.components.preprocessors.document_splitter.DocumentSplitter",
             "init_parameters": {"split_by": "function", "splitting_function": serialize_callable(custom_split)},
@@ -830,3 +827,11 @@ class TestSplittingNLTKSentenceSplitter:
         assert deserialized.respect_sentence_boundary == True
         assert hasattr(deserialized, "sentence_splitter")
         assert deserialized.language == "de"
+
+    def test_duplicate_pages_get_different_doc_id(self):
+        splitter = DocumentSplitter(split_by="page", split_length=1)
+        doc1 = Document(content="This is some text.\fThis is some text.\fThis is some text.\fThis is some text.")
+        splitter.warm_up()
+        result = splitter.run(documents=[doc1])
+
+        assert len({doc.id for doc in result["documents"]}) == 4

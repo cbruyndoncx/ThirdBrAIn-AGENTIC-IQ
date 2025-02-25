@@ -291,6 +291,10 @@ class TestSentenceTransformersDiversityRanker:
                 model_name_or_path="mock_model_name",
                 device=ComponentDevice.resolve_device(None).to_torch_str(),
                 use_auth_token=None,
+                model_kwargs=None,
+                tokenizer_kwargs=None,
+                config_kwargs=None,
+                backend="torch",
             )
             assert ranker.model == mock_model_instance
 
@@ -574,10 +578,11 @@ class TestSentenceTransformersDiversityRanker:
 
     @pytest.mark.integration
     @pytest.mark.parametrize("similarity", ["dot_product", "cosine"])
-    def test_run(self, similarity):
+    def test_run(self, similarity, monkeypatch):
         """
         Tests that run method returns documents in the correct order
         """
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
         ranker = SentenceTransformersDiversityRanker(
             model="sentence-transformers/all-MiniLM-L6-v2", similarity=similarity
         )
@@ -601,7 +606,8 @@ class TestSentenceTransformersDiversityRanker:
 
     @pytest.mark.integration
     @pytest.mark.parametrize("similarity", ["dot_product", "cosine"])
-    def test_run_real_world_use_case(self, similarity):
+    def test_run_real_world_use_case(self, similarity, monkeypatch):
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
         ranker = SentenceTransformersDiversityRanker(
             model="sentence-transformers/all-MiniLM-L6-v2", similarity=similarity
         )
@@ -673,7 +679,8 @@ class TestSentenceTransformersDiversityRanker:
 
     @pytest.mark.integration
     @pytest.mark.parametrize("similarity", ["dot_product", "cosine"])
-    def test_run_with_maximum_margin_relevance_strategy(self, similarity):
+    def test_run_with_maximum_margin_relevance_strategy(self, similarity, monkeypatch):
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
         query = "renewable energy sources"
         docs = [
             Document(content="18th-century French literature"),
@@ -718,3 +725,66 @@ class TestSentenceTransformersDiversityRanker:
             "Wind turbine technology",
         ]
         assert [doc.content for doc in results["documents"]] == expected
+
+    @patch("haystack.components.rankers.sentence_transformers_diversity.SentenceTransformer")
+    def test_model_onnx_backend(self, mocked_sentence_transformer):
+        ranker = SentenceTransformersDiversityRanker(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cpu"),
+            model_kwargs={"file_name": "onnx/model.onnx"},
+            backend="onnx",
+        )
+        ranker.warm_up()
+
+        mocked_sentence_transformer.assert_called_once_with(
+            model_name_or_path="sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu",
+            use_auth_token=None,
+            model_kwargs={"file_name": "onnx/model.onnx"},
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="onnx",
+        )
+
+    @patch("haystack.components.rankers.sentence_transformers_diversity.SentenceTransformer")
+    def test_model_openvino_backend(self, mocked_sentence_transformer):
+        ranker = SentenceTransformersDiversityRanker(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cpu"),
+            model_kwargs={"file_name": "openvino/openvino_model.xml"},
+            backend="openvino",
+        )
+        ranker.warm_up()
+
+        mocked_sentence_transformer.assert_called_once_with(
+            model_name_or_path="sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu",
+            use_auth_token=None,
+            model_kwargs={"file_name": "openvino/openvino_model.xml"},
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="openvino",
+        )
+
+    @patch("haystack.components.rankers.sentence_transformers_diversity.SentenceTransformer")
+    @pytest.mark.parametrize("model_kwargs", [{"torch_dtype": "float16"}, {"torch_dtype": "bfloat16"}])
+    def test_dtype_on_gpu(self, mocked_sentence_transformer, model_kwargs):
+        ranker = SentenceTransformersDiversityRanker(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cuda:0"),
+            model_kwargs=model_kwargs,
+        )
+        ranker.warm_up()
+
+        mocked_sentence_transformer.assert_called_once_with(
+            model_name_or_path="sentence-transformers/all-MiniLM-L6-v2",
+            device="cuda:0",
+            use_auth_token=None,
+            model_kwargs=model_kwargs,
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="torch",
+        )

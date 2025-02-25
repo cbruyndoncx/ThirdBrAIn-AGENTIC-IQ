@@ -5,7 +5,7 @@
 import csv
 import io
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -23,6 +23,7 @@ with LazyImport("Run 'pip install python-docx'") as docx_import:
     from docx.document import Document as DocxDocument
     from docx.table import Table
     from docx.text.paragraph import Paragraph
+    from lxml.etree import _Comment
 
 
 @dataclass
@@ -188,7 +189,7 @@ class DOCXToDocument:
                 )
                 continue
 
-            docx_metadata = self._get_docx_metadata(document=docx_document)
+            docx_metadata = asdict(self._get_docx_metadata(document=docx_document))
             merged_metadata = {**bytestream.meta, **metadata, "docx": docx_metadata}
 
             if not self.store_full_path and "file_path" in bytestream.meta:
@@ -210,6 +211,8 @@ class DOCXToDocument:
         """
         elements = []
         for element in document.element.body:
+            if isinstance(element, _Comment):
+                continue
             if element.tag.endswith("p"):
                 paragraph = Paragraph(element, document)
                 if paragraph.contains_page_break:

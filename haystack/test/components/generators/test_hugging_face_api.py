@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 from unittest.mock import MagicMock, Mock, patch
+from datetime import datetime
 
 import pytest
 from huggingface_hub import (
+    TextGenerationOutput,
     TextGenerationOutputToken,
     TextGenerationStreamOutput,
     TextGenerationStreamOutputStreamDetails,
@@ -29,7 +31,7 @@ def mock_check_valid_model():
 @pytest.fixture
 def mock_text_generation():
     with patch("huggingface_hub.InferenceClient.text_generation", autospec=True) as mock_text_generation:
-        mock_response = Mock()
+        mock_response = Mock(spec=TextGenerationOutput)
         mock_response.generated_text = "I'm fine, thanks."
         details = Mock()
         details.finish_reason = MagicMock(field1="value")
@@ -312,3 +314,27 @@ class TestHuggingFaceAPIGenerator:
         assert isinstance(response["meta"], list)
         assert len(response["meta"]) > 0
         assert [isinstance(meta, dict) for meta in response["meta"]]
+
+    @pytest.mark.flaky(reruns=5, reruns_delay=5)
+    @pytest.mark.integration
+    @pytest.mark.skipif(
+        not os.environ.get("HF_API_TOKEN", None),
+        reason="Export an env var called HF_API_TOKEN containing the Hugging Face token to run this test.",
+    )
+    def test_live_run_streaming_check_completion_start_time(self):
+        generator = HuggingFaceAPIGenerator(
+            api_type=HFGenerationAPIType.SERVERLESS_INFERENCE_API,
+            api_params={"model": "HuggingFaceH4/zephyr-7b-beta"},
+            generation_kwargs={"max_new_tokens": 30},
+            streaming_callback=streaming_callback_handler,
+        )
+
+        results = generator.run("You are a helpful agent that answers questions. What is the capital of France?")
+
+        assert len(results["replies"]) == 1
+        assert "Paris" in results["replies"][0]
+
+        # Verify completion start time in final metadata
+        assert "completion_start_time" in results["meta"][0]
+        completion_start = datetime.fromisoformat(results["meta"][0]["completion_start_time"])
+        assert completion_start <= datetime.now()

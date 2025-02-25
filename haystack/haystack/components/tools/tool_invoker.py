@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import warnings
 from typing import Any, Dict, List
 
 from haystack import component, default_from_dict, default_to_dict, logging
 from haystack.dataclasses.chat_message import ChatMessage, ToolCall
-from haystack.dataclasses.tool import Tool, ToolInvocationError, _check_duplicate_tool_names, deserialize_tools_inplace
+from haystack.tools.tool import Tool, ToolInvocationError, _check_duplicate_tool_names, deserialize_tools_inplace
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +117,6 @@ class ToolInvoker:
         :raises ValueError:
             If no tools are provided or if duplicate tool names are found.
         """
-
-        msg = "The `ToolInvoker` component is experimental and its API may change in the future."
-        warnings.warn(msg)
 
         if not tools:
             raise ValueError("ToolInvoker requires at least one tool to be provided.")

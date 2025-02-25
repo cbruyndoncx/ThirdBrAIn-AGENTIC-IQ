@@ -2,18 +2,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from haystack import component, default_from_dict, default_to_dict, logging
 from haystack.dataclasses import ChatMessage, StreamingChunk, ToolCall
-from haystack.dataclasses.tool import Tool, _check_duplicate_tool_names, deserialize_tools_inplace
 from haystack.lazy_imports import LazyImport
+from haystack.tools.tool import Tool, _check_duplicate_tool_names, deserialize_tools_inplace
 from haystack.utils import Secret, deserialize_callable, deserialize_secrets_inplace, serialize_callable
 from haystack.utils.hf import HFGenerationAPIType, HFModelType, check_valid_model, convert_message_to_hf_format
 from haystack.utils.url_validation import is_valid_http_url
 
 with LazyImport(message="Run 'pip install \"huggingface_hub[inference]>=0.27.0\"'") as huggingface_hub_import:
     from huggingface_hub import (
+        ChatCompletionInputFunctionDefinition,
         ChatCompletionInputTool,
         ChatCompletionOutput,
         ChatCompletionStreamOutput,
@@ -219,6 +221,7 @@ class HuggingFaceAPIChatGenerator:
         messages: List[ChatMessage],
         generation_kwargs: Optional[Dict[str, Any]] = None,
         tools: Optional[List[Tool]] = None,
+        streaming_callback: Optional[Callable[[StreamingChunk], None]] = None,
     ):
         """
         Invoke the text generation inference based on the provided messages and generation parameters.
@@ -230,6 +233,9 @@ class HuggingFaceAPIChatGenerator:
         :param tools:
             A list of tools for which the model can prepare calls. If set, it will override the `tools` parameter set
             during component initialization.
+        :param streaming_callback:
+            An optional callable for handling streaming responses. If set, it will override the `streaming_callback`
+            parameter set during component initialization.
         :returns: A dictionary with the following keys:
             - `replies`: A list containing the generated responses as ChatMessage objects.
         """
@@ -244,21 +250,35 @@ class HuggingFaceAPIChatGenerator:
             raise ValueError("Using tools and streaming at the same time is not supported. Please choose one.")
         _check_duplicate_tool_names(tools)
 
-        if self.streaming_callback:
-            return self._run_streaming(formatted_messages, generation_kwargs)
+        streaming_callback = streaming_callback or self.streaming_callback
+        if streaming_callback:
+            return self._run_streaming(formatted_messages, generation_kwargs, streaming_callback)
 
         hf_tools = None
         if tools:
-            hf_tools = [{"type": "function", "function": {**t.tool_spec}} for t in tools]
-
+            hf_tools = [
+                ChatCompletionInputTool(
+                    function=ChatCompletionInputFunctionDefinition(
+                        name=tool.name, description=tool.description, arguments=tool.parameters
+                    ),
+                    type="function",
+                )
+                for tool in tools
+            ]
         return self._run_non_streaming(formatted_messages, generation_kwargs, hf_tools)
 
-    def _run_streaming(self, messages: List[Dict[str, str]], generation_kwargs: Dict[str, Any]):
+    def _run_streaming(
+        self,
+        messages: List[Dict[str, str]],
+        generation_kwargs: Dict[str, Any],
+        streaming_callback: Callable[[StreamingChunk], None],
+    ):
         api_output: Iterable[ChatCompletionStreamOutput] = self._client.chat_completion(
             messages, stream=True, **generation_kwargs
         )
 
         generated_text = ""
+        first_chunk_time = None
 
         for chunk in api_output:
             # n is unused, so the API always returns only one choice
@@ -266,18 +286,20 @@ class HuggingFaceAPIChatGenerator:
             # see https://huggingface.co/docs/huggingface_hub/package_reference/inference_client#huggingface_hub.InferenceClient.chat_completion.n
             choice = chunk.choices[0]
 
-            text = choice.delta.content
-            if text:
-                generated_text += text
+            text = choice.delta.content or ""
+            generated_text += text
 
             finish_reason = choice.finish_reason
 
-            meta = {}
+            meta: Dict[str, Any] = {}
             if finish_reason:
                 meta["finish_reason"] = finish_reason
 
+            if first_chunk_time is None:
+                first_chunk_time = datetime.now().isoformat()
+
             stream_chunk = StreamingChunk(text, meta)
-            self.streaming_callback(stream_chunk)  # type: ignore # streaming_callback is not None (verified in the run method)
+            streaming_callback(stream_chunk)
 
         meta.update(
             {
@@ -285,6 +307,7 @@ class HuggingFaceAPIChatGenerator:
                 "finish_reason": finish_reason,
                 "index": 0,
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0},  # not available in streaming
+                "completion_start_time": first_chunk_time,
             }
         )
 
@@ -320,7 +343,11 @@ class HuggingFaceAPIChatGenerator:
                 )
                 tool_calls.append(tool_call)
 
-        meta = {"model": self._client.model, "finish_reason": choice.finish_reason, "index": choice.index}
+        meta: Dict[str, Any] = {
+            "model": self._client.model,
+            "finish_reason": choice.finish_reason,
+            "index": choice.index,
+        }
 
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
         if api_chat_output.usage:

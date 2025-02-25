@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/deepset-ai/haystack.git
 	branch = main
-	commit = 8e3f64717f8c601bd7ef58b68e044a84deceb4eb
-	parent = 7d0701c3e648cc412c2d86321c6eb6ac2db2766b
+	commit = 6652dd7550bc28eb7b9ff737085474b32974f74c
+	parent = b6c5519d1a3a31a5e50adbce93414951a966397c
 	method = merge
 	cmdver = 0.4.9

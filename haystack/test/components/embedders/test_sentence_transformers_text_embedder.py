@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2022-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+import random
 from unittest.mock import MagicMock, patch
 
-import torch
-import random
 import pytest
+import torch
 
 from haystack.components.embedders.sentence_transformers_text_embedder import SentenceTransformersTextEmbedder
 from haystack.utils import ComponentDevice, Secret
@@ -70,8 +70,10 @@ class TestSentenceTransformersTextEmbedder:
                 "truncate_dim": None,
                 "model_kwargs": None,
                 "tokenizer_kwargs": None,
+                "encode_kwargs": None,
                 "config_kwargs": None,
                 "precision": "float32",
+                "backend": "torch",
             },
         }
 
@@ -91,6 +93,7 @@ class TestSentenceTransformersTextEmbedder:
             tokenizer_kwargs={"model_max_length": 512},
             config_kwargs={"use_memory_efficient_attention": False},
             precision="int8",
+            encode_kwargs={"task": "clustering"},
         )
         data = component.to_dict()
         assert data == {
@@ -110,6 +113,8 @@ class TestSentenceTransformersTextEmbedder:
                 "tokenizer_kwargs": {"model_max_length": 512},
                 "config_kwargs": {"use_memory_efficient_attention": False},
                 "precision": "int8",
+                "encode_kwargs": {"task": "clustering"},
+                "backend": "torch",
             },
         }
 
@@ -224,6 +229,7 @@ class TestSentenceTransformersTextEmbedder:
             model_kwargs=None,
             tokenizer_kwargs={"model_max_length": 512},
             config_kwargs=None,
+            backend="torch",
         )
 
     @patch(
@@ -261,10 +267,11 @@ class TestSentenceTransformersTextEmbedder:
             embedder.run(text=list_integers_input)
 
     @pytest.mark.integration
-    def test_run_trunc(self):
+    def test_run_trunc(self, monkeypatch):
         """
         sentence-transformers/paraphrase-albert-small-v2 maps sentences & paragraphs to a 768 dimensional dense vector space
         """
+        monkeypatch.delenv("HF_API_TOKEN", raising=False)  # https://github.com/deepset-ai/haystack/issues/8811
         checkpoint = "sentence-transformers/paraphrase-albert-small-v2"
         text = "a nice text to embed"
 
@@ -296,3 +303,96 @@ class TestSentenceTransformersTextEmbedder:
 
         assert len(embedding_def) == 768
         assert all(isinstance(el, int) for el in embedding_def)
+
+    def test_embed_encode_kwargs(self):
+        embedder = SentenceTransformersTextEmbedder(model="model", encode_kwargs={"task": "retrieval.query"})
+        embedder.embedding_backend = MagicMock()
+        text = "a nice text to embed"
+        embedder.run(text=text)
+        embedder.embedding_backend.embed.assert_called_once_with(
+            [text],
+            batch_size=32,
+            show_progress_bar=True,
+            normalize_embeddings=False,
+            precision="float32",
+            task="retrieval.query",
+        )
+
+    @patch(
+        "haystack.components.embedders.sentence_transformers_text_embedder._SentenceTransformersEmbeddingBackendFactory"
+    )
+    def test_model_onnx_backend(self, mocked_factory):
+        onnx_embedder = SentenceTransformersTextEmbedder(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cpu"),
+            model_kwargs={
+                "file_name": "onnx/model.onnx"
+            },  # setting the path isn't necessary if the repo contains a "onnx/model.onnx" file but this is to prevent a HF warning
+            backend="onnx",
+        )
+        onnx_embedder.warm_up()
+
+        mocked_factory.get_embedding_backend.assert_called_once_with(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu",
+            auth_token=None,
+            trust_remote_code=False,
+            truncate_dim=None,
+            model_kwargs={"file_name": "onnx/model.onnx"},
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="onnx",
+        )
+
+    @patch(
+        "haystack.components.embedders.sentence_transformers_text_embedder._SentenceTransformersEmbeddingBackendFactory"
+    )
+    def test_model_openvino_backend(self, mocked_factory):
+        openvino_embedder = SentenceTransformersTextEmbedder(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cpu"),
+            model_kwargs={
+                "file_name": "openvino/openvino_model.xml"
+            },  # setting the path isn't necessary if the repo contains a "openvino/openvino_model.xml" file but this is to prevent a HF warning
+            backend="openvino",
+        )
+        openvino_embedder.warm_up()
+
+        mocked_factory.get_embedding_backend.assert_called_once_with(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu",
+            auth_token=None,
+            trust_remote_code=False,
+            truncate_dim=None,
+            model_kwargs={"file_name": "openvino/openvino_model.xml"},
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="openvino",
+        )
+
+    @patch(
+        "haystack.components.embedders.sentence_transformers_text_embedder._SentenceTransformersEmbeddingBackendFactory"
+    )
+    @pytest.mark.parametrize("model_kwargs", [{"torch_dtype": "bfloat16"}, {"torch_dtype": "float16"}])
+    def test_dtype_on_gpu(self, mocked_factory, model_kwargs):
+        torch_dtype_embedder = SentenceTransformersTextEmbedder(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            token=None,
+            device=ComponentDevice.from_str("cuda:0"),
+            model_kwargs=model_kwargs,
+        )
+        torch_dtype_embedder.warm_up()
+
+        mocked_factory.get_embedding_backend.assert_called_once_with(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            device="cuda:0",
+            auth_token=None,
+            trust_remote_code=False,
+            truncate_dim=None,
+            model_kwargs=model_kwargs,
+            tokenizer_kwargs=None,
+            config_kwargs=None,
+            backend="torch",
+        )

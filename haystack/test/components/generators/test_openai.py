@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-present deepset GmbH <info@deepset.ai>
 #
 # SPDX-License-Identifier: Apache-2.0
+from datetime import datetime
 import logging
 import os
 from typing import List
@@ -86,28 +87,6 @@ class TestOpenAIGenerator:
                 "api_base_url": "test-base-url",
                 "organization": "org-1234567",
                 "streaming_callback": "haystack.components.generators.utils.print_streaming_chunk",
-                "generation_kwargs": {"max_tokens": 10, "some_test_param": "test-params"},
-            },
-        }
-
-    def test_to_dict_with_lambda_streaming_callback(self, monkeypatch):
-        monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
-        component = OpenAIGenerator(
-            model="gpt-4o-mini",
-            streaming_callback=lambda x: x,
-            api_base_url="test-base-url",
-            generation_kwargs={"max_tokens": 10, "some_test_param": "test-params"},
-        )
-        data = component.to_dict()
-        assert data == {
-            "type": "haystack.components.generators.openai.OpenAIGenerator",
-            "init_parameters": {
-                "api_key": {"env_vars": ["OPENAI_API_KEY"], "strict": True, "type": "env_var"},
-                "model": "gpt-4o-mini",
-                "system_prompt": None,
-                "organization": None,
-                "api_base_url": "test-base-url",
-                "streaming_callback": "test_openai.<lambda>",
                 "generation_kwargs": {"max_tokens": 10, "some_test_param": "test-params"},
             },
         }
@@ -308,6 +287,9 @@ class TestOpenAIGenerator:
         assert "gpt-4o-mini" in metadata["model"]
         assert metadata["finish_reason"] == "stop"
 
+        assert "completion_start_time" in metadata
+        assert datetime.fromisoformat(metadata["completion_start_time"]) <= datetime.now()
+
         # unfortunately, the usage is not available for streaming calls
         # we keep the key in the metadata for compatibility
         assert "usage" in metadata and len(metadata["usage"]) == 0
@@ -329,10 +311,10 @@ class TestOpenAIGenerator:
         assert "teorema" in result["replies"][0].lower()
 
         result = generator.run(
-            "Can you explain the Pitagoras therom?",
+            "Can you explain the Pitagoras therom? Repeat the name of the theorem in German.",
             system_prompt="You answer in German, regardless of the language on which a question is asked.",
         )
-        assert "pythagoras" in result["replies"][0].lower()
+        assert "pythag" in result["replies"][0].lower()
 
     @pytest.mark.skipif(
         not os.environ.get("OPENAI_API_KEY", None),

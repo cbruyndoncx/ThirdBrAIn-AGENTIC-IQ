@@ -9,6 +9,7 @@ loaders:
         "html",
         "json",
         "markdown",
+        "msg",
         "openapi_functions",
         "output_adapter",
         "pdfminer",
@@ -16,6 +17,7 @@ loaders:
         "pypdf",
         "tika",
         "txt",
+        "xlsx",
       ]
     ignore_when_discovered: ["__init__"]
 processors:
