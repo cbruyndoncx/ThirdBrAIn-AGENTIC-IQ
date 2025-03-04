@@ -1,1 +1,0 @@
-"""Miscellaneous motleycrew applications."""
