@@ -10,12 +10,6 @@ This repository contains the following submodules:
 - **Languages Used**: TypeScript, Python, HTML, Shell, Dockerfile, JavaScript, Mako, Jinja
 - **Number of Releases**: 25
 
-## [ShoggothAI/motleycrew](https://github.com/ShoggothAI/motleycrew)
-- **Description**: Flexible and powerful multi-agent AI framework
-- **Last Updated**: 2025-01-06T06:01:11Z
-- **Languages Used**: Python, HTML, Makefile
-- **Number of Releases**: 13
-
 ## [jbexta/AgentPilot](https://github.com/jbexta/AgentPilot)
 - **Description**: Create, manage, and chat with AI workflows seamlessly | Branching chats | Litellm | Open interpreter
 - **Last Updated**: 2025-01-05T19:07:50Z
